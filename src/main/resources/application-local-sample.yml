@@ -1,0 +1,47 @@
+server:
+  base-url: localhost:8080
+  frontend-url: localhost:{ frontPort }
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:{ port }/{ schemaName }?useUnicode=yes&characterEncoding=UTF-8&allowMultiQueries=true&serverTimezone=Asia/Seoul
+    username: { username }
+    password: { password }
+  jpa:
+    defer-datasource-initialization: true
+    datasource: mysql
+    database-platform: org.hibernate.dialect.MySQLDialect
+    show-sql: true
+    hibernate:
+      format_sql: true
+      ddl-auto: update
+  sql:
+    init:
+      mode: always
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: { email }
+    password: { password }
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+    auth-code-expiration-millis: 1800000
+
+jwt:
+  header: Authorization
+  secret: { secretKey }
+  access-token-expire-time: 86400000
+  refresh-token-expire-time: 86400000
+logging:
+  level:
+    root: debug
+

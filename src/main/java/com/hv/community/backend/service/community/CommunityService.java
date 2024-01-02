@@ -256,6 +256,8 @@ public class CommunityService {
     reply.setCommunity(post.getCommunity());
     reply.setPost(post);
     replyRepository.save(reply);
+    post.setReplyCount(post.getReplyCount() + 1);
+    postRepository.save(post);
   }
 
   // POST checkReplyPassword
@@ -304,10 +306,13 @@ public class CommunityService {
   public void deleteReply(String email, DeleteReplyRequestDto deleteReplyRequestDto) {
     Reply reply = replyRepository.findById(deleteReplyRequestDto.getReply_id())
         .orElseThrow(() -> new RuntimeException("댓글 정보가 없습니다"));
+    Post post = reply.getPost();
     // 등록된 유저가 아닐 경우
     if (email.isEmpty()) {
       if (passwordEncoder.matches(deleteReplyRequestDto.getPassword(), reply.getPassword())) {
         replyRepository.delete(reply);
+        post.setReplyCount(post.getReplyCount() - 1);
+        postRepository.save(post);
       } else {
         throw new RuntimeException("비밀번호가 일치하지 않습니다");
       }
@@ -316,7 +321,10 @@ public class CommunityService {
       if (!Objects.equals(reply.getMember().getEmail(), email)) {
         throw new RuntimeException("해당 댓글에 대한 권한이 없습니다");
       } else {
+
         replyRepository.delete(reply);
+        post.setReplyCount(post.getReplyCount() - 1);
+        postRepository.save(post);
       }
     }
   }

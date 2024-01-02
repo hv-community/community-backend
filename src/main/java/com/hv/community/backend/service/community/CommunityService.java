@@ -22,9 +22,12 @@ import com.hv.community.backend.repository.community.CommunityRepository;
 import com.hv.community.backend.repository.community.PostRepository;
 import com.hv.community.backend.repository.community.ReplyRepository;
 import com.hv.community.backend.repository.member.MemberRepository;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -108,27 +111,39 @@ public class CommunityService {
   // GET getCommunityList
   // 게시판 리스트 조회
   // id, community, description, thumbnail반환
-  public ResponseListDto getCommunityList() {
+  public ResponseEntity<ResponseListDto> getCommunityList() {
     List<Community> communityList = communityRepository.findAll();
     List<GetCommunityListResponseDto> communityListResponseDtos = communityList.stream()
         .map(GetCommunityListResponseDto::of).toList();
+    Map<String, Object> responseData = new HashMap<>();
+    responseData.put("communities", communityListResponseDtos);
 
-    return ResponseListDto.builder().status("200").message("GET_COMMUNITY_LIST_SUCCESS")
-        .data(communityListResponseDtos).build();
+    return ResponseEntity.ok(ResponseListDto.builder()
+        .status("200")
+        .message("GET_COMMUNITY_LIST_SUCCESS")
+        .dataMap(responseData)
+        .build());
   }
 
   // GET getPostList/{community-id}
   // 게시글 목록 조회
   // 게시글 id, title, reply갯수, 작성자
-  public ResponseListDto getPostList(Long communityId) {
+  public ResponseEntity<ResponseListDto> getPostList(Long communityId) {
     Community community = communityRepository.findById(communityId)
         .orElseThrow(() -> new RuntimeException("커뮤니티 정보가 없습니다"));
     List<Post> postList = postRepository.findByCommunity(community);
     List<GetPostListResponseDto> postListResponseDtos = postList.stream()
         .map(GetPostListResponseDto::of).toList();
-    return ResponseListDto.builder().status("200").message("GET_COMMUNITY_LIST_SUCCESS")
-        .data(postListResponseDtos).build();
+    Map<String, Object> responseData = new HashMap<>();
+    responseData.put("posts", postListResponseDtos);
+
+    return ResponseEntity.ok(ResponseListDto.builder()
+        .status("200")
+        .message("GET_POST_LIST_SUCCESS")
+        .dataMap(responseData)
+        .build());
   }
+
 
   // GET getPostDetail/{post-id}
   // 게시글 상세 조회

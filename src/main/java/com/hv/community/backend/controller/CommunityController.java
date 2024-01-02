@@ -102,8 +102,9 @@ public class CommunityController {
   @GetMapping("/get-community-list")
   public ResponseEntity getCommunityList() {
     try {
-      ResponseListDto communityList = communityService.getCommunityList();
+      ResponseEntity<ResponseListDto> communityList = communityService.getCommunityList();
       return ResponseEntity.ok(communityList);
+
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
           ResponseDto.builder().status("400").message("GET_COMMUNITY_LIST_FAIL")
@@ -118,7 +119,7 @@ public class CommunityController {
   @GetMapping("/get-post-list/{communityId}")
   public ResponseEntity getPostList(@PathVariable Long communityId) {
     try {
-      ResponseListDto postList = communityService.getPostList(communityId);
+      ResponseEntity<ResponseListDto> postList = communityService.getPostList(communityId);
       return ResponseEntity.ok(postList);
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(

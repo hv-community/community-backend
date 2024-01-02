@@ -1,7 +1,7 @@
 package com.hv.community.backend.controller;
 
 import com.hv.community.backend.dto.ResponseDto;
-import com.hv.community.backend.dto.ResponseListDto;
+import com.hv.community.backend.dto.ResponseErrorDto;
 import com.hv.community.backend.dto.community.CheckPostPasswordRequestDto;
 import com.hv.community.backend.dto.community.CheckReplyPasswordRequestDto;
 import com.hv.community.backend.dto.community.CreateCommunityRequestDto;
@@ -13,6 +13,7 @@ import com.hv.community.backend.dto.community.GetPostDetailResponseDto;
 import com.hv.community.backend.dto.community.UpdatePostRequestDto;
 import com.hv.community.backend.dto.community.UpdateReplyRequestDto;
 import com.hv.community.backend.service.community.CommunityService;
+import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.User;
@@ -90,8 +91,8 @@ public class CommunityController {
           .body(ResponseDto.builder().status("200").message("CREATE_COMMUNITY_SUCCESS").build());
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("CREATE_COMMUNITY_FAIL")
-              .detail(e.getMessage()).build());
+          ResponseErrorDto.builder().id("COMMUNITY:CREATE_COMMUNITY_FAIL")
+              .message("커뮤니티 생성에 실패했습니다").build());
     }
   }
 
@@ -102,13 +103,13 @@ public class CommunityController {
   @GetMapping("/get-community-list")
   public ResponseEntity getCommunityList() {
     try {
-      ResponseEntity<ResponseListDto> communityList = communityService.getCommunityList();
+      Map<String, Object> communityList = communityService.getCommunityList();
       return ResponseEntity.ok(communityList);
 
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("GET_COMMUNITY_LIST_FAIL")
-              .detail(e.getMessage()).build());
+          ResponseErrorDto.builder().id("COMMUNITY:GET_COMMUNITY_LIST_FAIL")
+              .message("커뮤니티 목록을 가져오는데 실패했습니다").build());
     }
   }
 
@@ -119,12 +120,12 @@ public class CommunityController {
   @GetMapping("/get-post-list/{communityId}")
   public ResponseEntity getPostList(@PathVariable Long communityId) {
     try {
-      ResponseEntity<ResponseListDto> postList = communityService.getPostList(communityId);
+      Map<String, Object> postList = communityService.getPostList(communityId);
       return ResponseEntity.ok(postList);
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("GET_COMMUNITY_LIST_FAIL")
-              .detail(e.getMessage()).build());
+          ResponseErrorDto.builder().id("COMMUNITY:GET_POST_LIST_FAIL")
+              .message(e.getMessage()).build());
     }
   }
 
@@ -138,10 +139,9 @@ public class CommunityController {
       return ResponseEntity.ok(postDetail);
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("GET_POST_DETAIL_FAIL")
-              .detail(e.getMessage())
-              .build());
+          ResponseErrorDto.builder().id("COMMUNITY:EMPTY_POST").message(e.getMessage()).build());
     }
+
   }
 
   // POST createPost
@@ -153,8 +153,8 @@ public class CommunityController {
     if (createPostRequestDto.getTitle().trim().isEmpty() || createPostRequestDto.getContent().trim()
         .isEmpty()) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("CREATE_PROJECT_FAIL")
-              .detail("제목 혹은 내용이 비어있습니다.").build());
+          ResponseErrorDto.builder().id("COMMUNITY:EMPTY_TITLE_OR_CONTENT")
+              .message("제목 혹은 내용이 비어있습니다").build());
     }
     String email = getEmail(user);
     try {
@@ -163,8 +163,8 @@ public class CommunityController {
           .body(ResponseDto.builder().status("200").message("CREATE_POST_SUCCESS").build());
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("CREATE_POST_FAIL")
-              .detail(e.getMessage()).build());
+          ResponseErrorDto.builder().id("COMMUNITY:CREATE_POST_FAIL").message(e.getMessage())
+              .build());
     }
   }
 
@@ -176,8 +176,9 @@ public class CommunityController {
       @RequestBody CheckPostPasswordRequestDto checkPostPasswordRequestDto) {
     if (checkPostPasswordRequestDto.getPassword().trim().isEmpty()) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("CHECK_POST_PASSWORD_FAIL")
-              .detail("비밀번호가 비어있습니다.").build());
+          ResponseErrorDto.builder().id("COMMUNITY:CHECK_POST_PASSWORD_FAIL")
+              .message("비밀번호가 비어있습니다").build());
+
     }
     try {
       if (communityService.checkPostPassword(checkPostPasswordRequestDto)) {
@@ -186,12 +187,13 @@ public class CommunityController {
                 ResponseDto.builder().status("200").message("CHECK_POST_PASSWORD_SUCCESS").build());
       } else {
         return ResponseEntity.ok()
-            .body(ResponseDto.builder().status("400").message("CHECK_POST_PASSWORD_FAIL").build());
+            .body(ResponseErrorDto.builder().id("COMMUNITY:INVALID_PASSWORD")
+                .message("비밀번호가 일치하지 않습니다")
+                .build());
       }
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("CHECK_POST_PASSWORD_FAIL")
-              .detail(e.getMessage()).build());
+          ResponseErrorDto.builder().id("COMMUNITY:EMPTY_POST").message(e.getMessage()).build());
     }
   }
 
@@ -204,8 +206,9 @@ public class CommunityController {
     if (updatePostRequestDto.getTitle().trim().isEmpty() || updatePostRequestDto.getContent().trim()
         .isEmpty()) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("UPDATE_POST_FAIL")
-              .detail("제목 혹은 내용이 비어있습니다.").build());
+          ResponseErrorDto.builder().id("COMMUNITY:EMPTY_TITLE_OR_CONTENT")
+              .message("제목 혹은 내용이 비어있습니다").build());
+
     }
     String email = getEmail(user);
     try {
@@ -214,8 +217,8 @@ public class CommunityController {
           .body(ResponseDto.builder().status("200").message("UPDATE_POST_SUCCESS").build());
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("UPDATE_POST_FAIL")
-              .detail(e.getMessage()).build());
+          ResponseErrorDto.builder().id("COMMUNITY:UPDATE_POST_FAIL").message(e.getMessage())
+              .build());
     }
   }
 
@@ -232,8 +235,8 @@ public class CommunityController {
           .body(ResponseDto.builder().status("200").message("DELETE_POST_SUCCESS").build());
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("DELETE_POST_FAIL")
-              .detail(e.getMessage()).build());
+          ResponseErrorDto.builder().id("COMMUNITY:DELETE_POST_FAIL").message(e.getMessage())
+              .build());
     }
   }
 
@@ -245,8 +248,7 @@ public class CommunityController {
   CreateReplyRequestDto createReplyRequestDto) {
     if (createReplyRequestDto.getReply().trim().isEmpty()) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("CREATE_REPLY_FAIL")
-              .detail("댓글이 비어있습니다.").build());
+          ResponseErrorDto.builder().id("COMMUNITY:EMPTY_REPLY").message("댓글 내용이 없습니다").build());
     }
     String email = getEmail(user);
     try {
@@ -255,8 +257,8 @@ public class CommunityController {
           .body(ResponseDto.builder().status("200").message("CREATE_REPLY_SUCCESS").build());
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("CREATE_REPLY_FAIL")
-              .detail(e.getMessage()).build());
+          ResponseErrorDto.builder().id("COMMUNITY:CREATE_REPLY_FAIL").message(e.getMessage())
+              .build());
     }
 
   }
@@ -269,8 +271,8 @@ public class CommunityController {
       @RequestBody CheckReplyPasswordRequestDto checkReplyPasswordRequestDto) {
     if (checkReplyPasswordRequestDto.getPassword().trim().isEmpty()) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("CHECK_REPLY_PASSWORD_FAIL")
-              .detail("비밀번호가 비어있습니다.").build());
+          ResponseErrorDto.builder().id("COMMUNITY:CHECK_REPLY_PASSWORD_FAIL")
+              .message("비밀번호가 비어있습니다").build());
     }
     try {
       if (communityService.checkReplyPassword(checkReplyPasswordRequestDto)) {
@@ -280,12 +282,13 @@ public class CommunityController {
                     .build());
       } else {
         return ResponseEntity.ok()
-            .body(ResponseDto.builder().status("400").message("CHECK_REPLY_PASSWORD_FAIL").build());
+            .body(ResponseErrorDto.builder().id("COMMUNITY:INVALID_PASSWORD")
+                .message("비밀번호가 일치하지 않습니다")
+                .build());
       }
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("CHECK_REPLY_PASSWORD_FAIL")
-              .detail(e.getMessage()).build());
+          ResponseErrorDto.builder().id("COMMUNITY:EMPTY_REPLY").message(e.getMessage()).build());
     }
   }
 
@@ -297,8 +300,7 @@ public class CommunityController {
   UpdateReplyRequestDto updateReplyRequestDto) {
     if (updateReplyRequestDto.getReply().trim().isEmpty()) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("UPDATE_REPLY_FAIL")
-              .detail("댓글이 비어있습니다.").build());
+          ResponseErrorDto.builder().id("COMMUNITY:EMPTY_REPLY").message("댓글 내용이 없습니다"));
     }
     String email = getEmail(user);
     try {
@@ -307,8 +309,7 @@ public class CommunityController {
           .body(ResponseDto.builder().status("200").message("UPDATE_REPLY_SUCCESS").build());
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("UPDATE_REPLY_FAIL")
-              .detail(e.getMessage()).build());
+          ResponseErrorDto.builder().id("COMMUNITY:UPDATE_REPLY_FAIL").message(e.getMessage()));
     }
   }
 
@@ -325,8 +326,8 @@ public class CommunityController {
           .body(ResponseDto.builder().status("200").message("DELETE_REPLY_SUCCESS").build());
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("DELETE_REPLY_FAIL")
-              .detail(e.getMessage()).build());
+          ResponseErrorDto.builder().id("COMMUNITY:DELETE_REPLY_FAIL").message(e.getMessage())
+              .build());
     }
   }
 

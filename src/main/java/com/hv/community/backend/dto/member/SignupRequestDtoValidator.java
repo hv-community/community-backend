@@ -26,11 +26,11 @@ public class SignupRequestDtoValidator implements Validator {
 
     // 이메일 유효성검사
     if (signupRequestDto.getEmail() == null || signupRequestDto.getEmail().trim().isEmpty()) {
-      errors.rejectValue("email", "EMAIL_EMPTY");
+      throw new RuntimeException("EMAIL_EMPTY");
     } else {
       Matcher matcher = pattern.matcher(signupRequestDto.getEmail());
       if (!matcher.matches()) {
-        errors.rejectValue("email", "EMAIL_FORM_ERROR");
+        throw new RuntimeException("EMAIL_FORM_ERROR");
       }
     }
   }

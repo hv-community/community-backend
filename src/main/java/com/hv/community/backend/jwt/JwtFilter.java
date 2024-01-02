@@ -42,25 +42,13 @@ public class JwtFilter extends OncePerRequestFilter {
     filterChain.doFilter(request, response);
   }
 
-  // 요청 헤더의 jwt 추출
-//  private String resolveToken(HttpServletRequest request) {
-//    String bearerToken = request.getHeader(AUTHORIZATION_HEADER);
-//    if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(BEARER_PREFIX)) {
-//      return bearerToken.substring(7);
-//    }
-//    return null;
-//  }
 
   // 요청 헤더 또는 쿠키에서 jwt 추출
   private String resolveToken(HttpServletRequest request) {
-    // Try to extract token from Authorization header
     String bearerToken = request.getHeader(AUTHORIZATION_HEADER);
     if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(BEARER_PREFIX)) {
-      // If the token starts with "Bearer", return the token excluding "Bearer"
       return bearerToken.substring(BEARER_PREFIX.length() + 1);
     }
-    // No token found in header or cookie
     return null;
   }
-
 }

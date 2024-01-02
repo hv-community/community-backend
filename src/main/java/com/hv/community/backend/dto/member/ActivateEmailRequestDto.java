@@ -7,8 +7,6 @@ import lombok.Setter;
 @Setter
 public class ActivateEmailRequestDto {
 
-  private String verificationCode;
-  private String email;
-  private String name;
-  private String password;
+  private String token;
+  private String verification_code;
 }

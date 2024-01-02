@@ -41,6 +41,9 @@ public class Member {
   @Column(name = "emailActivated")
   private Integer emailActivated;
 
+  @Column(name = "token")
+  private String token;
+
   @OneToOne(mappedBy = "member")
   private MemberTemp memberTemp;
 

@@ -4,9 +4,9 @@ package com.hv.community.backend.controller;
 import com.hv.community.backend.dto.ResponseDto;
 import com.hv.community.backend.dto.TokenDto;
 import com.hv.community.backend.dto.member.ActivateEmailRequestDto;
-import com.hv.community.backend.dto.member.ActivateEmailRequestDtoValidator;
 import com.hv.community.backend.dto.member.ResetPasswordRequestDto;
 import com.hv.community.backend.dto.member.ResetPasswordRequestDtoValidator;
+import com.hv.community.backend.dto.member.SendEmailVerificationCodeRequestDto;
 import com.hv.community.backend.dto.member.SendResetEmailRequestDtoValidator;
 import com.hv.community.backend.dto.member.SendResetPasswordEmailRequestDto;
 import com.hv.community.backend.dto.member.SigninRequestDto;
@@ -52,7 +52,40 @@ public class MemberController {
     this.mailService = mailService;
   }
 
-  // 회원가입
+  // POST signup
+  // 회원가입 로직
+  // email, nickname, password
+  // token반환 및 verificationCode(6자리 숫자)메일로 발송
+
+  // POST sendEmailVerificationCode
+  // 이메일 재발송 로직
+  // token
+  // verificationCode(6자리 숫자)메일로 발송
+
+  // POST activateEmail
+  // 이메일 활성화 로직
+  // token, verificationCode
+
+  // POST signin
+  // 로그인
+  // email, password
+  // accessToken, refreshToken 반환
+
+  // GET refreshAccessToken
+  // accessToken 재생성로직
+  // refreshToken
+  // accessToken 반환
+
+  // GET getMyProfile
+  // email, name fetch
+  // accessToken
+  // email, name return
+
+
+  // POST signup
+  // 회원가입 로직
+  // email, nickname, password
+  // token반환 및 verificationCode(6자리 숫자)메일로 발송
   @PostMapping("/signup")
   public ResponseEntity<ResponseDto> signup(@RequestBody SignupRequestDto signupRequestDto,
       Errors errors) {
@@ -63,10 +96,9 @@ public class MemberController {
               .build());
     }
     try {
-      TokenDto tokenDto = memberService.signup(signupRequestDto);
+      String token = memberService.signup(signupRequestDto);
       Map<String, String> data = new HashMap<>();
-      data.put("accessToken", tokenDto.getAccessToken());
-      data.put("refreshToken", tokenDto.getRefreshToken());
+      data.put("token", token);
       return ResponseEntity.ok(
           ResponseDto.builder().status("200").message("SIGNUP_SUCCESS").data(data).build());
     } catch (RuntimeException e) {
@@ -77,7 +109,56 @@ public class MemberController {
     }
   }
 
-  // 로그인 로직
+  // POST sendEmailVerificationCode
+  // 이메일 재발송 로직
+  // token
+  // verificationCode(6자리 숫자)메일로 발송
+  @PostMapping("/send-email-verification-code")
+  public ResponseEntity<ResponseDto> sendEmailVerificationCode(@RequestBody
+  SendEmailVerificationCodeRequestDto sendEmailVerificationCodeRequestDto) {
+
+    String token = sendEmailVerificationCodeRequestDto.getToken();
+    try {
+      Map<String, String> data = memberService.getEmailVerificationCode(token);
+      String email = data.keySet().iterator().next();
+      String verificationCode = data.get(email);
+
+      mailService.sendEmail(email, "이메일 인증 메일 입니다.", verificationCode);
+      return ResponseEntity.ok(
+          ResponseDto.builder().status("200").message("SEND_EMAIL_SUCCESS").build());
+    } catch (RuntimeException e) {
+      Map<String, String> errorCode = new HashMap<>();
+      errorCode.put("email", "EMAIL_SEND_ERROR");
+      return ResponseEntity.internalServerError().body(
+          ResponseDto.builder().status("500").message("EMAIL_SEND_ERROR").errors(errorCode)
+              .build());
+    }
+  }
+
+
+  // POST activateEmail
+  // 이메일 활성화 로직
+  // token, verificationCode
+  @PostMapping("/activate-email")
+  public ResponseEntity<ResponseDto> activateEmail(
+      @RequestBody ActivateEmailRequestDto activateEmailRequestDto) {
+    try {
+      memberService.activateEmail(activateEmailRequestDto);
+      return ResponseEntity.ok(
+          ResponseDto.builder().status("200").message("SUCCESS_ACTIVATE_EMAIL").build());
+    } catch (RuntimeException e) {
+      Map<String, String> errorCode = new HashMap<>();
+      errorCode.put("code", "CODE_INVALID");
+      return ResponseEntity.badRequest().body(
+          ResponseDto.builder().status("400").message("ACTIVATE_FAIL").errors(errorCode).build());
+    }
+  }
+
+
+  // POST signin
+  // 로그인
+  // email, password
+  // accessToken, refreshToken 반환
   @PostMapping("/signin")
   public ResponseEntity<ResponseDto> signin(@RequestBody SigninRequestDto signinRequestDto,
       Errors errors) {
@@ -94,8 +175,8 @@ public class MemberController {
       TokenDto tokenDto = memberService.signin(signinRequestDto.getEmail(),
           signinRequestDto.getPassword());
       Map<String, String> data = new HashMap<>();
-      data.put("accessToken", tokenDto.getAccessToken());
-      data.put("refreshToken", tokenDto.getRefreshToken());
+      data.put("access_token", tokenDto.getAccessToken());
+      data.put("refresh_token", tokenDto.getRefreshToken());
       return ResponseEntity.ok(
           ResponseDto.builder().status("200").message("SIGNIN_SUCCESS").data(data).build());
     } catch (RuntimeException e) {
@@ -107,7 +188,10 @@ public class MemberController {
     }
   }
 
-  // accessToken 갱신 로직
+  // GET refreshAccessToken
+  // accessToken 재생성로직
+  // refreshToken
+  // accessToken 반환
   @GetMapping("/refresh-access-token")
   public ResponseEntity<ResponseDto> refreshAccessToken(HttpServletRequest request) {
     try {
@@ -116,142 +200,51 @@ public class MemberController {
       if (!tokenProvider.validateToken(refreshToken)) {
         return ResponseEntity.badRequest().build();
       }
+
       // refresh token으로 access token 재발급
       String accessToken = tokenProvider.refreshAccessToken(refreshToken);
 
       Map<String, String> data = new HashMap<>();
-      data.put("accessToken", accessToken);
+      data.put("access_token", accessToken);
       return ResponseEntity.ok(
           ResponseDto.builder().status("200").message("REFRESH_ACCESS_TOKEN_SUCCESS").data(data)
               .build());
     } catch (RuntimeException e) {
+
       return ResponseEntity.badRequest()
           .body(ResponseDto.builder().status("400").message("REFRESH_ACCESS_TOKEN_FAIL").build());
     }
   }
 
-  // 이메일 인증이 되었는지 확인
-  @GetMapping("/is-email-activate")
-  public ResponseEntity<ResponseDto> isEmailActivated(@AuthenticationPrincipal User user) {
-    // 로그인하지 않은 경우 - 401
-    if (user == null) {
-      Map<String, String> errorCode = new HashMap<>();
-      errorCode.put("accessToken", "UNAUTHORIZED");
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-          ResponseDto.builder().status("401").message("UNAUTHORIZED").errors(errorCode).build());
-    }
-    // 이메일 가져오기
-    String email = getEmail(user);
-    try {
-      // 이메일 활성화여부 확인
-      if (memberService.isVerifiedEmail(email)) {
-        // 이메일 인증 O
-        return ResponseEntity.ok(
-            ResponseDto.builder().status("200").message("ALREADY_EMAIL_ACTIVATED").build());
-      } else {
-        // 이메일 인증 X
-        return ResponseEntity.ok(
-            ResponseDto.builder().status("200").message("EMAIL_NOT_ACTIVATED").build());
-      }
-    } catch (RuntimeException e) {
-      // 이메일이 DB에 없는경우
-      Map<String, String> errorCode = new HashMap<>();
-      errorCode.put("email", "NOT_EXIST_EMAIL");
-      return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("401").message("EMAIL_ERROR").errors(errorCode).build());
-    }
-  }
 
-
-  // 메일관련 로직
-  // 회원 활성화 이메일 발송 로직
-  @GetMapping("/send-email-verification-code")
-  public ResponseEntity<ResponseDto> sendEmailVerificationCode(@AuthenticationPrincipal User user) {
-    if (user == null) {
-      Map<String, String> errorCode = new HashMap<>();
-      errorCode.put("accessToken", "UNAUTHORIZED");
-      return new ResponseEntity<>(
-          ResponseDto.builder().status("401").message("UNAUTHORIZED").errors(errorCode).build(),
-          HttpStatus.UNAUTHORIZED);
+  // GET getMyProfile
+  // email, name fetch
+  // accessToken
+  // email, name return
+  @GetMapping("/get-my-profile")
+  public ResponseEntity<ResponseDto> getMyProfile(@AuthenticationPrincipal User user) {
+    // accesstoken검사
+    ResponseEntity<ResponseDto> authError = handleAuthorizationError(user);
+    if (authError != null) {
+      return authError;
     }
 
     String email = getEmail(user);
     try {
-      if (memberService.isVerifiedEmail(email)) {
-        Map<String, String> errorCode = new HashMap<>();
-        errorCode.put("email", "ALREADY_EMAIL_ACTIVATED");
-        return ResponseEntity.badRequest().body(
-            ResponseDto.builder().status("400").message("ALREADY_EMAIL_ACTIVATED").errors(errorCode)
-                .build());
-      }
+      String name = memberService.getMyProfile(email);
+      Map<String, String> data = new HashMap<>();
+      data.put("email", email);
+      data.put("name", name);
+      return ResponseEntity.ok()
+          .body(ResponseDto.builder().status("200").message("GET_MY_PROFILE_SUCCESS").data(data)
+              .build());
     } catch (RuntimeException e) {
-      Map<String, String> errorCode = new HashMap<>();
-      errorCode.put("email", "NOT_EXIST_EMAIL");
-      return ResponseEntity.internalServerError().body(
-          ResponseDto.builder().status("400").message("NOT_EXIST_EMAIL").errors(errorCode).build());
-    }
-
-    try {
-      String activationCode = memberService.getEmailVerificationCode(email);
-      String activationUrl = EMAIL_ACTIVATE_URL + activationCode;
-      mailService.sendEmail(email, "이메일 인증 메일 입니다.", activationUrl);
-      return ResponseEntity.ok(
-          ResponseDto.builder().status("200").message("MAIL_SEND_SUCCESS").build());
-    } catch (RuntimeException e) {
-      Map<String, String> errorCode = new HashMap<>();
-      errorCode.put("email", "EMAIL_SEND_ERROR");
-      return ResponseEntity.internalServerError().body(
-          ResponseDto.builder().status("500").message("EMAIL_SEND_ERROR").errors(errorCode)
+      return ResponseEntity.badRequest().body(
+          ResponseDto.builder().status("400").message("GET_MY_PROFILE_ERROR").detail(e.getMessage())
               .build());
     }
   }
 
-  // 활성화 코드담긴 링크로 들어갔을때 링크가 유효한지 확인하고 리턴하는 로직
-  @GetMapping("/check-email-verification-code/{code}")
-  public ResponseEntity<ResponseDto> checkEmailVerificationCode(@PathVariable String code) {
-    try {
-      // 코드를 기반으로 이메일을 끌어온다
-      String email = memberService.checkEmailVerificationCode(code);
-      Map<String, String> responseDate = new HashMap<>();
-      responseDate.put("email", email);
-      // 200을 받으면 이메일을 리턴해주고 name, password, confirm password를 사용자가 입력하는 창이 뜨도록한다(최종 등록과정)
-      return ResponseEntity.ok(
-          ResponseDto.builder().status("200").message("SUCCESS_EMAIL_ACTIVATE").data(responseDate)
-              .build());
-    } catch (RuntimeException e) {
-      // 코드가 정상적이지 않을경우 404 페이지 보여준다.
-      Map<String, String> errorCode = new HashMap<>();
-      errorCode.put("code", "CODE_INVALID");
-      return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("EMAIL_ACTIVATE_FAIL").errors(errorCode)
-              .build());
-    }
-  }
-
-  // 요청받은 코드를 memberService의 메일 확인 로직을 실행한다.
-  // memberService에서는 코드를 MemberTempRepository에서 code를 통한 검색을 진행한다.
-  @PostMapping("/activate-email")
-  public ResponseEntity<ResponseDto> activateEmail(
-      @RequestBody ActivateEmailRequestDto activateEmailRequestDto, Errors errors) {
-    // 들어온 dto 유효성검사 (비밀번호한정) > 파일만들어야함
-    // 등록과정진행
-    new ActivateEmailRequestDtoValidator().validate(activateEmailRequestDto, errors);
-    if (errors.hasErrors()) {
-      return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("ACTIVE_FAIL").errors(getErrorCode(errors))
-              .build());
-    }
-    try {
-      memberService.activateEmail(activateEmailRequestDto);
-      return ResponseEntity.ok(
-          ResponseDto.builder().status("200").message("SUCCESS_ACTIVATE_EMAIL").build());
-    } catch (RuntimeException e) {
-      Map<String, String> errorCode = new HashMap<>();
-      errorCode.put("code", "CODE_INVALID");
-      return ResponseEntity.badRequest().body(
-          ResponseDto.builder().status("400").message("ACTIVATE_FAIL").errors(errorCode).build());
-    }
-  }
 
   // 비밀번호 초기화 메일보내기 로직
   @PostMapping("/send-reset-password-email")
@@ -264,6 +257,7 @@ public class MemberController {
           ResponseDto.builder().status("400").message("SEND_EMAIL_FAIL")
               .errors(getErrorCode(errors)).build());
     }
+
     String email = sendResetPasswordEmailRequestDto.getEmail();
     try {
       String resetVerificationCode = memberService.getResetPasswordVerificationCode(email);
@@ -313,7 +307,7 @@ public class MemberController {
               .build());
     }
     try {
-      String code = resetPasswordRequestDto.getVerificationCode();
+      String code = resetPasswordRequestDto.getVerification_code();
       String email = resetPasswordRequestDto.getEmail();
       String newPassword = resetPasswordRequestDto.getPassword();
       memberService.resetPassword(code, email, newPassword);
@@ -326,6 +320,17 @@ public class MemberController {
           .body(
               ResponseDto.builder().status("400").message("RESET_FAIL").errors(errorCode).build());
     }
+  }
+
+  private ResponseEntity<ResponseDto> handleAuthorizationError(User user) {
+    if (user == null || user.getUsername() == null || user.getUsername().isEmpty()) {
+      Map<String, String> errorCode = new HashMap<>();
+      errorCode.put("accessToken", "EMPTY_ACCESS_TOKEN");
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+          .body(ResponseDto.builder().status("401").message("EMPTY_ACCESS_TOKEN").errors(errorCode)
+              .build());
+    }
+    return null;
   }
 
   private static Map<String, String> getErrorCode(Errors errors) {

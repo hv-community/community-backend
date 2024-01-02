@@ -22,6 +22,9 @@ public class MemberTemp {
   @Column(name = "id")
   private Long id;
 
+  @Column(name = "token")
+  private String token;
+
   @Column(name = "code")
   private String code;
 

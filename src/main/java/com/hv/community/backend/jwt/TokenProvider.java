@@ -32,17 +32,10 @@ import org.springframework.stereotype.Component;
 public class TokenProvider implements InitializingBean {
 
   private final Logger logger = LoggerFactory.getLogger(getClass());
-
   private static final String AUTHORITIES_KEY = "auth";
-
-  // private static final String BEARER_TYPE = "bearer";
-
   private final String secret;
-
   private final long ACCESS_TOKEN_EXPIRE_TIME;
-
   private final long REFRESH_TOKEN_EXPIRE_TIME;
-
   private Key key;
 
   public TokenProvider(@Value("${jwt.secret}") String secret,
@@ -67,7 +60,6 @@ public class TokenProvider implements InitializingBean {
         .collect(Collectors.joining(","));
     long now = (new Date()).getTime();
     Date accessTokenExpiresIn = new Date(now + ACCESS_TOKEN_EXPIRE_TIME);
-
     // Create Access Token
     String accessToken = Jwts.builder()
         .signWith(key, SignatureAlgorithm.HS512)        // header  "alg": "HS512"
@@ -92,15 +84,9 @@ public class TokenProvider implements InitializingBean {
   }
 
   public String refreshAccessToken(String refreshToken) {
-    // Parse the refresh token claims to get user information if needed
     Claims refreshClaims = parseClaims(refreshToken);
-
-    // Use the user information to create a new authentication object
     Authentication authentication = getAuthentication(refreshToken);
-
-    // Create a new access token
     String newAccessToken = createToken(authentication).getAccessToken();
-
     return newAccessToken;
   }
 

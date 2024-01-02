@@ -1,13 +1,12 @@
 package com.hv.community.backend.dto.member;
 
+
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
-public class SignupRequestDto {
+public class SendEmailVerificationCodeRequestDto {
 
-  private String email;
-  private String nickname;
-  private String password;
+  private String token;
 }

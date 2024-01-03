@@ -1,6 +1,7 @@
 package com.hv.community.backend.dto.community;
 
 import com.hv.community.backend.domain.community.Reply;
+import java.util.Date;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,6 +15,8 @@ public class ReplyDto {
   private String reply;
   private String member;
   private String nickname;
+  private Date creationTime;
+  private Date modificationTime;
 
 
   public static ReplyDto of(Reply reply) {
@@ -25,6 +28,8 @@ public class ReplyDto {
         .reply(reply.getReply())
         .member(memberNickname)
         .nickname(replyNickname)
+        .creationTime(reply.getCreationTime())
+        .modificationTime(reply.getModificationTime())
         .build();
   }
 }

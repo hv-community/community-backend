@@ -1,6 +1,5 @@
 package com.hv.community.backend.controller;
 
-import com.hv.community.backend.dto.ResponseDto;
 import com.hv.community.backend.dto.ResponseErrorDto;
 import com.hv.community.backend.dto.community.CheckPostPasswordRequestDto;
 import com.hv.community.backend.dto.community.CheckReplyPasswordRequestDto;
@@ -13,6 +12,7 @@ import com.hv.community.backend.dto.community.GetPostDetailResponseDto;
 import com.hv.community.backend.dto.community.UpdatePostRequestDto;
 import com.hv.community.backend.dto.community.UpdateReplyRequestDto;
 import com.hv.community.backend.service.community.CommunityService;
+import java.util.HashMap;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -87,8 +88,7 @@ public class CommunityController {
       @RequestBody CreateCommunityRequestDto createCommunityRequestDto) {
     try {
       communityService.createCommunity(createCommunityRequestDto);
-      return ResponseEntity.ok()
-          .body(ResponseDto.builder().status("200").message("CREATE_COMMUNITY_SUCCESS").build());
+      return ResponseEntity.ok(new HashMap<>());
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
           ResponseErrorDto.builder().id("COMMUNITY:CREATE_COMMUNITY_FAIL")
@@ -101,11 +101,14 @@ public class CommunityController {
   // 게시판 리스트 조회
   // id, community, description, thumbnail반환
   @GetMapping("/get-community-list")
-  public ResponseEntity getCommunityList() {
-    try {
-      Map<String, Object> communityList = communityService.getCommunityList();
-      return ResponseEntity.ok(communityList);
+  public ResponseEntity getCommunityList(
+      @RequestParam(defaultValue = "1") int page,
+      @RequestParam(defaultValue = "10") int page_size) {
 
+    try {
+      Map<String, Object> communityList = communityService.getCommunityList(page, page_size);
+
+      return ResponseEntity.ok(communityList);
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
           ResponseErrorDto.builder().id("COMMUNITY:GET_COMMUNITY_LIST_FAIL")
@@ -118,9 +121,11 @@ public class CommunityController {
   // 게시글 id, title, reply갯수, 작성자
 
   @GetMapping("/get-post-list/{communityId}")
-  public ResponseEntity getPostList(@PathVariable Long communityId) {
+  public ResponseEntity getPostList(@PathVariable Long communityId,
+      @RequestParam(defaultValue = "1") int page,
+      @RequestParam(defaultValue = "10") int page_size) {
     try {
-      Map<String, Object> postList = communityService.getPostList(communityId);
+      Map<String, Object> postList = communityService.getPostList(communityId, page, page_size);
       return ResponseEntity.ok(postList);
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
@@ -133,15 +138,16 @@ public class CommunityController {
   // 게시글 상세 조회
   // 게시글 id, title, 작성자, reply배열 반환
   @GetMapping("/get-post-detail/{postId}")
-  public ResponseEntity getPostDetail(@PathVariable Long postId) {
+  public ResponseEntity getPostDetail(@PathVariable Long postId,
+      @RequestParam(defaultValue = "1") int page,
+      @RequestParam(defaultValue = "10") int page_size) {
     try {
-      GetPostDetailResponseDto postDetail = communityService.getPostDetail(postId);
+      GetPostDetailResponseDto postDetail = communityService.getPostDetail(postId, page, page_size);
       return ResponseEntity.ok(postDetail);
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
           ResponseErrorDto.builder().id("COMMUNITY:EMPTY_POST").message(e.getMessage()).build());
     }
-
   }
 
   // POST createPost
@@ -158,9 +164,10 @@ public class CommunityController {
     }
     String email = getEmail(user);
     try {
-      communityService.createPost(email, createPostRequestDto);
-      return ResponseEntity.ok()
-          .body(ResponseDto.builder().status("200").message("CREATE_POST_SUCCESS").build());
+      Long postId = communityService.createPost(email, createPostRequestDto);
+      Map<String, Object> response = new HashMap<>();
+      response.put("post_id", postId);
+      return ResponseEntity.ok(response);
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
           ResponseErrorDto.builder().id("COMMUNITY:CREATE_POST_FAIL").message(e.getMessage())
@@ -182,9 +189,7 @@ public class CommunityController {
     }
     try {
       if (communityService.checkPostPassword(checkPostPasswordRequestDto)) {
-        return ResponseEntity.ok()
-            .body(
-                ResponseDto.builder().status("200").message("CHECK_POST_PASSWORD_SUCCESS").build());
+        return ResponseEntity.ok(new HashMap<>());
       } else {
         return ResponseEntity.ok()
             .body(ResponseErrorDto.builder().id("COMMUNITY:INVALID_PASSWORD")
@@ -213,8 +218,7 @@ public class CommunityController {
     String email = getEmail(user);
     try {
       communityService.updatePost(email, updatePostRequestDto);
-      return ResponseEntity.ok()
-          .body(ResponseDto.builder().status("200").message("UPDATE_POST_SUCCESS").build());
+      return ResponseEntity.ok(new HashMap<>());
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
           ResponseErrorDto.builder().id("COMMUNITY:UPDATE_POST_FAIL").message(e.getMessage())
@@ -231,8 +235,7 @@ public class CommunityController {
     String email = getEmail(user);
     try {
       communityService.deletePost(email, deletePostRequestDto);
-      return ResponseEntity.ok()
-          .body(ResponseDto.builder().status("200").message("DELETE_POST_SUCCESS").build());
+      return ResponseEntity.ok(new HashMap<>());
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
           ResponseErrorDto.builder().id("COMMUNITY:DELETE_POST_FAIL").message(e.getMessage())
@@ -252,9 +255,11 @@ public class CommunityController {
     }
     String email = getEmail(user);
     try {
-      communityService.createReply(email, createReplyRequestDto);
-      return ResponseEntity.ok()
-          .body(ResponseDto.builder().status("200").message("CREATE_REPLY_SUCCESS").build());
+      Long replyId = communityService.createReply(email, createReplyRequestDto);
+      Map<String, Object> response = new HashMap<>();
+      response.put("reply_id", replyId);
+      return ResponseEntity.ok(response);
+
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
           ResponseErrorDto.builder().id("COMMUNITY:CREATE_REPLY_FAIL").message(e.getMessage())
@@ -276,10 +281,7 @@ public class CommunityController {
     }
     try {
       if (communityService.checkReplyPassword(checkReplyPasswordRequestDto)) {
-        return ResponseEntity.ok()
-            .body(
-                ResponseDto.builder().status("200").message("CHECK_REPLY_PASSWORD_SUCCESS")
-                    .build());
+        return ResponseEntity.ok(new HashMap<>());
       } else {
         return ResponseEntity.ok()
             .body(ResponseErrorDto.builder().id("COMMUNITY:INVALID_PASSWORD")
@@ -305,8 +307,7 @@ public class CommunityController {
     String email = getEmail(user);
     try {
       communityService.updateReply(email, updateReplyRequestDto);
-      return ResponseEntity.ok()
-          .body(ResponseDto.builder().status("200").message("UPDATE_REPLY_SUCCESS").build());
+      return ResponseEntity.ok(new HashMap<>());
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
           ResponseErrorDto.builder().id("COMMUNITY:UPDATE_REPLY_FAIL").message(e.getMessage()));
@@ -322,8 +323,7 @@ public class CommunityController {
     String email = getEmail(user);
     try {
       communityService.deleteReply(email, deleteReplyRequestDto);
-      return ResponseEntity.ok()
-          .body(ResponseDto.builder().status("200").message("DELETE_REPLY_SUCCESS").build());
+      return ResponseEntity.ok(new HashMap<>());
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
           ResponseErrorDto.builder().id("COMMUNITY:DELETE_REPLY_FAIL").message(e.getMessage())

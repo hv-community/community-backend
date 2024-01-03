@@ -1,31 +1,43 @@
 package com.hv.community.backend.dto.community;
 
 import com.hv.community.backend.domain.community.Post;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.data.domain.Page;
 
 @Getter
 @Setter
 @Builder
 public class GetPostListResponseDto {
 
-  private Long id;
-  private String title;
-  private Integer reply_count;
-  private String member;
-  private String nickname;
+  private final int page;
+  private final int pageSize;
+  private final int prev;
+  private final int next;
+  private final List<PostDto> posts;
 
-  public static GetPostListResponseDto of(Post post) {
-    String memberNickname = (post.getMember() != null) ? post.getMember().getNickname() : null;
-    String postNickname = (post.getNickname() != null) ? post.getNickname() : null;
+  public GetPostListResponseDto(int page, int pageSize, int prev, int next, List<PostDto> posts) {
+    this.page = page;
+    this.pageSize = pageSize;
+    this.prev = prev;
+    this.next = next;
+    this.posts = posts;
+  }
 
-    return GetPostListResponseDto.builder()
-        .id(post.getId())
-        .title(post.getTitle())
-        .reply_count(post.getReplyCount())
-        .member(memberNickname)
-        .nickname(postNickname)
-        .build();
+  public static GetPostListResponseDto of(Page<Post> postPage, int pageSize) {
+    List<PostDto> postListResponseDtos = postPage.stream()
+        .map(PostDto::of)
+        .collect(Collectors.toList());
+
+    return new GetPostListResponseDto(
+        postPage.getNumber(),
+        pageSize,
+        postPage.getNumber() - 1,
+        postPage.getNumber() + 1,
+        postListResponseDtos
+    );
   }
 }

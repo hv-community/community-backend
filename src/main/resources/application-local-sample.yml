@@ -45,3 +45,22 @@ logging:
   level:
     root: debug
 
+# 환경변수 설정
+#  export SENTRY_AUTH_TOKEN={ auth_token }
+sentry:
+  dsn: { dsn }
+  # Set traces-sample-rate to 1.0 to capture 100% of transactions for performance monitoring.
+  # We recommend adjusting this value in production.
+  traces-sample-rate: 1.0
+  #debug: true # 디버그 모드
+  enable-tracing: true
+  send-default-pii: true # 사용자 정보 기록
+  environment: development # 개발환경 / environment=production
+  #  sample-rate: 1 # 샘플링 비율 1=100% 다 보냄
+  #  traces-sample-rate # 트랜잭션 비율 설정
+  #  logging: # 범위
+  #  minimum-event-level: "WARN"
+  #  minimum-breadcrumb-level: "INFO"
+
+
+

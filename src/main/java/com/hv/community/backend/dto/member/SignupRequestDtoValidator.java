@@ -1,5 +1,6 @@
 package com.hv.community.backend.dto.member;
 
+import com.hv.community.backend.exception.MemberException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.validation.Errors;
@@ -26,12 +27,26 @@ public class SignupRequestDtoValidator implements Validator {
 
     // 이메일 유효성검사
     if (signupRequestDto.getEmail() == null || signupRequestDto.getEmail().trim().isEmpty()) {
-      throw new RuntimeException("EMAIL_EMPTY");
+      throw new MemberException("MEMBER:EMAIL_EMPTY");
     } else {
       Matcher matcher = pattern.matcher(signupRequestDto.getEmail());
       if (!matcher.matches()) {
-        throw new RuntimeException("EMAIL_FORM_ERROR");
+        throw new MemberException("MEMBER:EMAIL_FORM_ERROR");
       }
     }
+    if (signupRequestDto.getNickname().length() < 4 ||
+        signupRequestDto.getNickname().length() > 20) {
+      throw new MemberException("MEMBER:NICKNAME_FORM_ERROR");
+    }
+    if (signupRequestDto.getPassword().length() < 8 ||
+        signupRequestDto.getPassword().length() > 20 ||
+        !containsSpecialCharacter(signupRequestDto.getPassword())) {
+      throw new MemberException("MEMBER:PASSWORD_FORM_ERROR");
+    }
+  }
+
+  // 특수문자 포함 여부를 정규식으로 확인
+  private boolean containsSpecialCharacter(String password) {
+    return password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\",.<>/?]+.*");
   }
 }

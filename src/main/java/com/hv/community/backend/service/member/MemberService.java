@@ -8,6 +8,7 @@ import com.hv.community.backend.domain.member.Role;
 import com.hv.community.backend.dto.TokenDto;
 import com.hv.community.backend.dto.member.ActivateEmailRequestDto;
 import com.hv.community.backend.dto.member.SignupRequestDto;
+import com.hv.community.backend.exception.MemberException;
 import com.hv.community.backend.jwt.TokenProvider;
 import com.hv.community.backend.repository.member.MemberRepository;
 import com.hv.community.backend.repository.member.MemberTempRepository;
@@ -27,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -65,8 +67,13 @@ public class MemberService {
     this.roleRepository = roleRepository;
   }
 
-  // POST signup
-  // 회원가입 로직
+  // POST checkEmailDuplication
+  // 유저등록전 중복검사 로직
+  // email, nickname, password
+  // 토큰 만료여부 판단후 signup 실행
+
+  // signup
+  // 유저 등록로직
   // email, nickname, password
   // token반환 및 verificationCode(6자리 숫자)메일로 발송
 
@@ -101,19 +108,56 @@ public class MemberService {
   // POST signup
   // 회원가입 로직
   // email, nickname, password
-  // token반환 및 verificationCode(6자리 숫자)메일로 발송
-  public String signup(SignupRequestDto signupRequestDto) {
-    if (memberRepository.existsByEmail(signupRequestDto.getEmail())) {
-      log.debug("중복 이메일 가입 요청, 요청 이메일: {}", signupRequestDto.getEmail());
-      throw new RuntimeException("EMAIL_EXIST");
+  // 토큰 만료여부 판단후 registerMember 실행
+  public String checkEmailDuplication(SignupRequestDto signupRequestDto) {
+    // 해당 이메일이 존재하는경우
+    // 토큰값이 있는가?
+    // 토큰이 있다면 생성일로부터 24시간이 지났는가?
+    // 토큰생성으로 24시간이 지났다면 새로운 토큰을 만들고 새롭게 저장한다
+    // 토큰생성 24시간이 되지않았다면 중복 이메일 가입 요청으로 리턴시킴
+    Member isMember = memberRepository.findByEmail(signupRequestDto.getEmail()).orElse(null);
+    // 같은 이메일이 존재하는가?
+    if (isMember != null) {
+
+      // 이메일이 존재할때 토큰값이 비어있는가?
+      String token = isMember.getToken();
+      if (token == null) {
+        // 이미 인증완료된 유저
+        log.debug("중복 이메일 가입 요청, 요청 이메일: {}", signupRequestDto.getEmail());
+        throw new MemberException("MEMBER:EXIST_MAIL");
+      } else {
+        // 토큰값이 24시간이 지났는가?
+        Date storedTime = isMember.getRegisterDate();
+        Date currentTime = new Date();
+
+        long timeDifferenceMillis = currentTime.getTime() - storedTime.getTime();
+        long twentyFourHoursMillis = 24 * 60 * 60 * 1000;
+        boolean is24HoursPassed = timeDifferenceMillis > twentyFourHoursMillis;
+        // 24시간 지났다면 해당유저 지우고 다시등록
+        if (is24HoursPassed) {
+          memberRepository.delete(isMember);
+          return signup(signupRequestDto);
+        } else {
+          // 24시간동안 중복가입시도 금지
+          log.debug("중복 이메일 가입 요청, 요청 이메일: {}", signupRequestDto.getEmail());
+          throw new MemberException("MEMBER:EXIST_MAIL");
+        }
+      }
+      // 같은 이메일이 존재하지않을때는 닉네임 중복검사
     } else if (memberRepository.existsByNickname(signupRequestDto.getNickname())) {
       log.debug("중복 닉네임 가입 요청, 요청 닉네임: {}", signupRequestDto.getEmail());
-      throw new RuntimeException("NICKNAME_EXIST");
+      throw new MemberException("MEMBER:EXIST_NICKNAME");
     }
+    return signup(signupRequestDto);
+  }
+
+  // registerMember
+  // 유저 등록로직
+  // token반환 및 verificationCode(6자리 숫자)메일로 발송
+  private String signup(SignupRequestDto signupRequestDto) {
     Role role = new Role();
     role.setRoleName("ROLE_NONE");
     roleRepository.save(role);
-
 
     Member member = new Member();
     member.setEmail(signupRequestDto.getEmail());
@@ -132,7 +176,6 @@ public class MemberService {
 
     // 이메일 활성화 코드 메일 발송
     String verificationCode = createEmailVerificationCode(token);
-    // 이메일 발송중 에러리턴하는경우 token을 못받는 문제
     mailService.sendEmail(signupRequestDto.getEmail(), "이메일 인증 코드입니다.", verificationCode);
 
     return token;
@@ -193,6 +236,8 @@ public class MemberService {
     if (Objects.equals(token, memberTemp.getMember().getToken())) {
       Member member = memberTemp.getMember();
       member.setEmailActivated(1);
+      member.setToken(null);
+      memberRepository.save(member);
       memberTempRepository.delete(memberTemp);
     }
   }
@@ -203,32 +248,46 @@ public class MemberService {
   // accessToken, refreshToken 반환
   @Transactional(readOnly = true)
   public TokenDto signin(String email, String password) {
+    Member member = memberRepository.findByEmail(email)
+        .orElseThrow(() -> new RuntimeException("등록되지 않은 유저입니다"));
+    if (member.getEmailActivated() == 1) {
+      try {
+        // 1. Login Email, Password 로 AuthenticationToken 생성
+        UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
+            email, password);
 
-    // 1. Login Email, Password 로 AuthenticationToken 생성
-    UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-        email, password);
+        // 2. Email, Password 일치 검증이 일어남
+        //    authenticationManagerBuilder.getObject().authenticate() 에서 CustomUserDetailsService 의 loadUserByUsername() 실행됨
+        Authentication authentication = authenticationManagerBuilder.getObject()
+            .authenticate(authenticationToken);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
 
-    // 2. Email, Password 일치 검증이 일어남
-    //    authenticationManagerBuilder.getObject().authenticate() 에서 CustomUserDetailsService 의 loadUserByUsername() 실행됨
-    Authentication authentication = authenticationManagerBuilder.getObject()
-        .authenticate(authenticationToken);
-    SecurityContextHolder.getContext().setAuthentication(authentication);
+        // 3. 인증 정보로 JWT 토큰 생성
+        TokenDto tokenDto = tokenProvider.createToken(authentication);
 
-    // 3. 인증 정보로 JWT 토큰 생성
-    TokenDto tokenDto = tokenProvider.createToken(authentication);
-
-    // 4. 토큰 발급
-    return tokenDto;
+        // 4. 토큰 발급
+        return tokenDto;
+      } catch (AuthenticationException e) {
+        throw new RuntimeException("이메일 혹은 비밀번호 오류입니");
+      }
+    } else {
+      throw new RuntimeException("이메일인증이 필요합니다");
+    }
   }
 
   // GET getMyProfile
   // email, name fetch
   // accessToken
   // email, name return
-  public String getMyProfile(String email) {
+  public Map<String, String> getMyProfile(String email) {
     Member member = memberRepository.findByEmail(email)
         .orElseThrow(() -> new RuntimeException("해당하는 유저가 없습니다."));
-    return member.getNickname();
+    Map<String, String> responseData = new HashMap<>();
+    responseData.put("id", String.valueOf(member.getId()));
+    responseData.put("email", member.getEmail());
+    responseData.put("nickname", member.getNickname());
+
+    return responseData;
   }
 
 

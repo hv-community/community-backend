@@ -21,6 +21,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.User;
@@ -88,27 +89,14 @@ public class MemberController {
   // email, nickname, password
   // token반환 및 verificationCode(6자리 숫자)메일로 발송
   @PostMapping("/signup")
-  public ResponseEntity signup(@RequestBody SignupRequestDto signupRequestDto,
+  public ResponseEntity<Object> signup(@RequestBody SignupRequestDto signupRequestDto,
       Errors errors) {
     new SignupRequestDtoValidator().validate(signupRequestDto, errors);
-    if (errors.hasErrors()) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("MEMBER:VALIDATION_ERROR").message("이메일 유효성 검사를 통과하지 못했습니다")
-              .build());
 
-    }
-    try {
-      String token = memberService.signup(signupRequestDto);
-      Map<String, String> data = new HashMap<>();
-      data.put("token", token);
-      return ResponseEntity.ok(data);
-//      return ResponseEntity.ok(
-//          ResponseDto.builder().status("200").message("SIGNUP_SUCCESS").data(data).build());
-    } catch (RuntimeException e) {
-
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("MEMBER:SIGNUP_FAIL").message("이메일 등록에 실패했습니다"));
-    }
+    String token = memberService.checkEmailDuplication(signupRequestDto);
+    Map<String, String> data = new HashMap<>();
+    data.put("token", token);
+    return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(data);
   }
 
   // POST sendEmailVerificationCode
@@ -126,15 +114,13 @@ public class MemberController {
       String verificationCode = data.get(email);
 
       mailService.sendEmail(email, "이메일 인증 메일 입니다", verificationCode);
-      return ResponseEntity.ok(
-          ResponseDto.builder().status("200").message("SEND_EMAIL_SUCCESS").build());
+      return ResponseEntity.ok(new HashMap<>());
     } catch (RuntimeException e) {
-      return ResponseEntity.internalServerError().body(
+      return ResponseEntity.badRequest().body(
           ResponseErrorDto.builder().id("MEMBER:SEND_EMAIL_NO_RESPONSE")
               .message("이메일 서버 연결 시간이 초과되었습니다").build());
     }
   }
-
 
   // POST activateEmail
   // 이메일 활성화 로직
@@ -144,8 +130,7 @@ public class MemberController {
       @RequestBody ActivateEmailRequestDto activateEmailRequestDto) {
     try {
       memberService.activateEmail(activateEmailRequestDto);
-      return ResponseEntity.ok(
-          ResponseDto.builder().status("200").message("SUCCESS_ACTIVATE_EMAIL").build());
+      return ResponseEntity.ok(new HashMap<>());
     } catch (RuntimeException e) {
       Map<String, String> errorCode = new HashMap<>();
       errorCode.put("code", "CODE_INVALID");
@@ -154,7 +139,6 @@ public class MemberController {
               .message("이메일 활성화에 실패했습니다").build());
     }
   }
-
 
   // POST signin
   // 로그인
@@ -216,7 +200,6 @@ public class MemberController {
     }
   }
 
-
   // GET getMyProfile
   // email, name fetch
   // accessToken
@@ -231,10 +214,8 @@ public class MemberController {
 
     String email = getEmail(user);
     try {
-      String name = memberService.getMyProfile(email);
-      Map<String, String> data = new HashMap<>();
-      data.put("email", email);
-      data.put("name", name);
+      Map<String, String> data = memberService.getMyProfile(email);
+
       return ResponseEntity.ok(data);
     } catch (RuntimeException e) {
       return ResponseEntity.badRequest().body(
@@ -242,7 +223,6 @@ public class MemberController {
               .build());
     }
   }
-
 
   // 비밀번호 초기화 메일보내기 로직
   @PostMapping("/send-reset-password-email")

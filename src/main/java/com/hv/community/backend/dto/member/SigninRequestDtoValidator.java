@@ -1,5 +1,6 @@
 package com.hv.community.backend.dto.member;
 
+import com.hv.community.backend.exception.MemberException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.validation.Errors;
@@ -26,16 +27,16 @@ public class SigninRequestDtoValidator implements Validator {
 
     // 이메일 유효성검사
     if (signinRequestDto.getEmail() == null || signinRequestDto.getEmail().trim().isEmpty()) {
-      errors.rejectValue("email", "EMAIL_EMPTY");
+      throw new MemberException("MEMBER:EMAIL_FORM_ERROR");
     } else {
       Matcher matcher = pattern.matcher(signinRequestDto.getEmail());
       if (!matcher.matches()) {
-        errors.rejectValue("email", "EMAIL_FORM_ERROR");
+        throw new MemberException("MEMBER:EMAIL_FORM_ERROR");
       }
     }
     // 비밀번호 검사
     if (signinRequestDto.getPassword() == null || signinRequestDto.getPassword().trim().isEmpty()) {
-      errors.rejectValue("password", "PASSWORD_EMPTY");
+      throw new MemberException("MEMBER:PASSWORD_FORM_ERROR");
     }
   }
 }

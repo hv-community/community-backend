@@ -3,7 +3,6 @@ package com.hv.community.backend.service.member;
 
 import com.hv.community.backend.domain.member.Member;
 import com.hv.community.backend.domain.member.MemberTemp;
-import com.hv.community.backend.domain.member.ResetVerificationCode;
 import com.hv.community.backend.domain.member.Role;
 import com.hv.community.backend.dto.TokenDto;
 import com.hv.community.backend.dto.member.ActivateEmailRequestDto;
@@ -15,8 +14,6 @@ import com.hv.community.backend.repository.member.MemberTempRepository;
 import com.hv.community.backend.repository.member.ResetVerificationCodeRepository;
 import com.hv.community.backend.repository.member.RoleRepository;
 import com.hv.community.backend.service.mail.MailService;
-import com.hv.community.backend.util.Sha256;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.Date;
@@ -28,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -84,7 +80,7 @@ public class MemberService {
   // n자리 랜던 번호를 받아서 memberTemp에 토큰과 같이 저장
 
   // getEmailVerificationCode
-  // 만들어진 코드가 있는지 확인하고 없으면 createEmailVerificationCode실행
+  // 만들어진 코드가 있는지 확인하고 없으면 createEmailVerificationCode 실행
 
   // POST sendEmailVerificationCode
   // 이메일 재발송 로직
@@ -105,11 +101,11 @@ public class MemberService {
   // accessToken
   // email, name return
 
-  // POST signup
-  // 회원가입 로직
+  // POST checkEmailDuplication
+  // 유저등록전 중복검사 로직
   // email, nickname, password
-  // 토큰 만료여부 판단후 registerMember 실행
-  public String checkEmailDuplication(SignupRequestDto signupRequestDto) {
+  // 토큰 만료여부 판단후 signup 실행
+  public String checkEmailDuplicationV1(SignupRequestDto signupRequestDto) {
     // 해당 이메일이 존재하는경우
     // 토큰값이 있는가?
     // 토큰이 있다면 생성일로부터 24시간이 지났는가?
@@ -118,13 +114,12 @@ public class MemberService {
     Member isMember = memberRepository.findByEmail(signupRequestDto.getEmail()).orElse(null);
     // 같은 이메일이 존재하는가?
     if (isMember != null) {
-
       // 이메일이 존재할때 토큰값이 비어있는가?
       String token = isMember.getToken();
       if (token == null) {
         // 이미 인증완료된 유저
         log.debug("중복 이메일 가입 요청, 요청 이메일: {}", signupRequestDto.getEmail());
-        throw new MemberException("MEMBER:EXIST_MAIL");
+        throw new MemberException("MEMBER:MAIL_EXIST");
       } else {
         // 토큰값이 24시간이 지났는가?
         Date storedTime = isMember.getRegisterDate();
@@ -136,54 +131,56 @@ public class MemberService {
         // 24시간 지났다면 해당유저 지우고 다시등록
         if (is24HoursPassed) {
           memberRepository.delete(isMember);
-          return signup(signupRequestDto);
+          return signupV1(signupRequestDto);
         } else {
           // 24시간동안 중복가입시도 금지
           log.debug("중복 이메일 가입 요청, 요청 이메일: {}", signupRequestDto.getEmail());
-          throw new MemberException("MEMBER:EXIST_MAIL");
+          throw new MemberException("MEMBER:MAIL_EXIST");
         }
       }
       // 같은 이메일이 존재하지않을때는 닉네임 중복검사
     } else if (memberRepository.existsByNickname(signupRequestDto.getNickname())) {
       log.debug("중복 닉네임 가입 요청, 요청 닉네임: {}", signupRequestDto.getEmail());
-      throw new MemberException("MEMBER:EXIST_NICKNAME");
+      throw new MemberException("MEMBER:NICKNAME_EXIST");
     }
-    return signup(signupRequestDto);
+    return signupV1(signupRequestDto);
   }
 
-  // registerMember
+  // signup
   // 유저 등록로직
+  // email, nickname, password
   // token반환 및 verificationCode(6자리 숫자)메일로 발송
-  private String signup(SignupRequestDto signupRequestDto) {
-    Role role = new Role();
-    role.setRoleName("ROLE_NONE");
-    roleRepository.save(role);
+  private String signupV1(SignupRequestDto signupRequestDto) {
+    String token;
+    try {
+      Role role = new Role();
+      role.setRoleName("ROLE_NONE");
+      roleRepository.save(role);
 
-    Member member = new Member();
-    member.setEmail(signupRequestDto.getEmail());
-    member.setNickname(signupRequestDto.getNickname());
-    member.setPassword(passwordEncoder.encode(signupRequestDto.getPassword()));
-    member.setRegisterDate(new Date());
-
-    member.setRoles(Collections.singleton(role));
-    member.setEmailActivated(0);
-
-    // 토큰생성후 리턴
-    String token = passwordEncoder.encode(
-        member.getEmail() + member.getNickname() + member.getRegisterDate());
-    member.setToken(token);
-    memberRepository.save(member);
-
+      Member member = new Member();
+      member.setEmail(signupRequestDto.getEmail());
+      member.setNickname(signupRequestDto.getNickname());
+      member.setPassword(passwordEncoder.encode(signupRequestDto.getPassword()));
+      member.setRegisterDate(new Date());
+      member.setRoles(Collections.singleton(role));
+      member.setEmailActivated(0);
+      // 토큰생성후 리턴
+      token = passwordEncoder.encode(
+          member.getEmail() + member.getNickname() + member.getRegisterDate());
+      member.setToken(token);
+      memberRepository.save(member);
+    } catch (Exception e) {
+      throw new MemberException("MEMBER:SIGNUP_FAIL");
+    }
     // 이메일 활성화 코드 메일 발송
-    String verificationCode = createEmailVerificationCode(token);
-    mailService.sendEmail(signupRequestDto.getEmail(), "이메일 인증 코드입니다.", verificationCode);
-
+    String verificationCode = createEmailVerificationCodeV1(token);
+    mailService.sendEmailV1(signupRequestDto.getEmail(), "이메일 인증 코드입니다.", verificationCode);
     return token;
   }
 
   // generateRandomNumericCode
   // n자리 랜덤 번호생성
-  private String generateRandomNumericCode(int length) {
+  private String generateRandomNumericCodeV1(int length) {
     Random random = new SecureRandom();
     StringBuilder code = new StringBuilder(length);
     for (int i = 0; i < length; i++) {
@@ -195,50 +192,63 @@ public class MemberService {
 
   // createEmailVerificationCode
   // n자리 랜던 번호를 받아서 memberTemp에 토큰과 같이 저장
-  public String createEmailVerificationCode(String token) {
-    // 이메일 활성화 코드 생성
-    Member member = memberRepository.findByToken(token);
-    String verificationCode = generateRandomNumericCode(6);
-    MemberTemp memberTemp = new MemberTemp();
-    memberTemp.setMember(member);
-    memberTemp.setToken(token);
-    memberTemp.setCode(verificationCode);
-    memberTempRepository.save(memberTemp);
-
-    return verificationCode;
+  public String createEmailVerificationCodeV1(String token) {
+    Member member = memberRepository.findByToken(token)
+        .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
+    try {
+      String verificationCode = generateRandomNumericCodeV1(6);
+      MemberTemp memberTemp = new MemberTemp();
+      memberTemp.setMember(member);
+      memberTemp.setMember(member);
+      memberTemp.setToken(token);
+      memberTemp.setCode(verificationCode);
+      memberTempRepository.save(memberTemp);
+      return verificationCode;
+    } catch (Exception e) {
+      throw new MemberException("MEMBER:CREATE_EMAIL_VERIFICATION_CODE_FAIL");
+    }
   }
 
   // getEmailVerificationCode
-  // 만들어진 코드가 있는지 확인하고 없으면 createEmailVerificationCode실행
-  public Map<String, String> getEmailVerificationCode(String token) {
-    Member member = memberRepository.findByToken(token);
-    if (member == null || member.getMemberTemp() == null) {
+  // 만들어진 코드가 있는지 확인하고 없으면 createEmailVerificationCode 실행
+  public Map<String, String> getEmailVerificationCodeV1(String token) {
+    Member member = memberRepository.findByToken(token)
+        .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
+    try {
+      if (member == null || member.getMemberTemp() == null) {
+        Map<String, String> data = new HashMap<>();
+        assert member != null;
+        data.put(member.getEmail(), createEmailVerificationCodeV1(token));
+        return data;
+      }
       Map<String, String> data = new HashMap<>();
-      assert member != null;
-      data.put(member.getEmail(), createEmailVerificationCode(token));
+      data.put(member.getEmail(), member.getMemberTemp().getCode());
       return data;
+    } catch (Exception e) {
+      throw new MemberException("MEMBER:GET_EMAIL_VERIFICATION_CODE_FAIL");
     }
-    Map<String, String> data = new HashMap<>();
-    data.put(member.getEmail(), member.getMemberTemp().getCode());
-    return data;
   }
 
 
   // POST activateEmail
   // 이메일 활성화 로직
   // token, verificationCode
-  public void activateEmail(ActivateEmailRequestDto activateEmailRequestDto) {
+  public void activateEmailV1(ActivateEmailRequestDto activateEmailRequestDto) {
     String token = activateEmailRequestDto.getToken();
     String verificationCode = activateEmailRequestDto.getVerification_code();
 
     MemberTemp memberTemp = memberTempRepository.findByCode(verificationCode)
-        .orElseThrow(() -> new RuntimeException("잘못된 code 인증 시도"));
-    if (Objects.equals(token, memberTemp.getMember().getToken())) {
-      Member member = memberTemp.getMember();
-      member.setEmailActivated(1);
-      member.setToken(null);
-      memberRepository.save(member);
-      memberTempRepository.delete(memberTemp);
+        .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
+    try {
+      if (Objects.equals(token, memberTemp.getMember().getToken())) {
+        Member member = memberTemp.getMember();
+        member.setEmailActivated(1);
+        member.setToken(null);
+        memberRepository.save(member);
+        memberTempRepository.delete(memberTemp);
+      }
+    } catch (Exception e) {
+      throw new MemberException("MEMBER:ACTIVATE_EMAIL_FAIL");
     }
   }
 
@@ -247,9 +257,9 @@ public class MemberService {
   // email, password
   // accessToken, refreshToken 반환
   @Transactional(readOnly = true)
-  public TokenDto signin(String email, String password) {
+  public TokenDto signinV1(String email, String password) {
     Member member = memberRepository.findByEmail(email)
-        .orElseThrow(() -> new RuntimeException("등록되지 않은 유저입니다"));
+        .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
     if (member.getEmailActivated() == 1) {
       try {
         // 1. Login Email, Password 로 AuthenticationToken 생성
@@ -267,11 +277,11 @@ public class MemberService {
 
         // 4. 토큰 발급
         return tokenDto;
-      } catch (AuthenticationException e) {
-        throw new RuntimeException("이메일 혹은 비밀번호 오류입니");
+      } catch (Exception e) {
+        throw new MemberException("MEMBER:EMAIL_OR_PASSWORD_ERROR");
       }
     } else {
-      throw new RuntimeException("이메일인증이 필요합니다");
+      throw new MemberException("MEMBER:EMAIL_ACTIVATE_REQUIRE");
     }
   }
 
@@ -279,73 +289,77 @@ public class MemberService {
   // email, name fetch
   // accessToken
   // email, name return
-  public Map<String, String> getMyProfile(String email) {
+  public Map<String, String> getMyProfileV1(String email) {
     Member member = memberRepository.findByEmail(email)
-        .orElseThrow(() -> new RuntimeException("해당하는 유저가 없습니다."));
-    Map<String, String> responseData = new HashMap<>();
-    responseData.put("id", String.valueOf(member.getId()));
-    responseData.put("email", member.getEmail());
-    responseData.put("nickname", member.getNickname());
-
-    return responseData;
-  }
-
-
-  // 비밀번호 초기화 코드 생성 로직
-  public String createResetPasswordVerificationCode(String email) {
-    String verificationCode = "Create Error";
-
+        .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
     try {
-      for (int i = 1; i <= 5; ++i) {
-        verificationCode = Sha256.encrypt(email);
-        if (!resetVerificationCodeRepository.existsByCode(verificationCode)) {
-          break;
-        }
-      }
-    } catch (NoSuchAlgorithmException e) {
-      verificationCode = "Create Error";
-    }
+      Map<String, String> responseData = new HashMap<>();
+      responseData.put("id", String.valueOf(member.getId()));
+      responseData.put("email", member.getEmail());
+      responseData.put("nickname", member.getNickname());
 
-    Member member = memberRepository.findByEmail(email)
-        .orElseThrow(() -> new RuntimeException("미가입 이메일 인증 요청;"));
-    ResetVerificationCode resetVerificationCode = new ResetVerificationCode();
-    resetVerificationCode.setMember(member);
-    resetVerificationCode.setCode(verificationCode);
-    resetVerificationCodeRepository.save(resetVerificationCode);
-    return verificationCode;
-  }
-
-  // 비밀번호 초기화 코드 가져오는 로직
-  public String getResetPasswordVerificationCode(String email) {
-    Member member = memberRepository.findByEmail(email).orElse(null);
-    if (member == null || member.getResetVerificationCode() == null) {
-      return createResetPasswordVerificationCode(email);
-    }
-    return member.getResetVerificationCode().getCode();
-  }
-
-  // 비밀번호 초기화 코드를 확인하고 이메일을 리턴해서 프론트의 defaultValue값을 채워주는 로직
-  public String checkResetPasswordVerificationCode(String code) {
-    ResetVerificationCode resetVerificationCode = resetVerificationCodeRepository.findByCode(code)
-        .orElseThrow(() -> new RuntimeException("잘못된 인증 code 인증 시도"));
-
-    Member member = resetVerificationCode.getMember();
-    return member.getEmail();
-  }
-
-  // 비밀번호 초기화 코드와 새로운 비밀번호를 가져와서 Member의 새로운 비밀번호를 넣어주는 로직
-  @Transactional
-  public boolean resetPassword(String code, String email, String newPassword) {
-    ResetVerificationCode resetVerificationCode = resetVerificationCodeRepository.findByCode(code)
-        .orElseThrow(() -> new RuntimeException("잘못된 인증 code 인증 시도"));
-    if (Objects.equals(email, resetVerificationCode.getMember().getEmail())) {
-      Member member = resetVerificationCode.getMember();
-      member.setPassword(passwordEncoder.encode(newPassword));
-      memberRepository.save(member);
-      resetVerificationCodeRepository.delete(resetVerificationCode);
-      return true;
-    } else {
-      return false;
+      return responseData;
+    } catch (Exception e) {
+      throw new MemberException("MEMBER:GET_MY_PROFILE_ERROR");
     }
   }
+
+//
+//  // 비밀번호 초기화 코드 생성 로직
+//  public String createResetPasswordVerificationCode(String email) {
+//    String verificationCode = "Create Error";
+//
+//    try {
+//      for (int i = 1; i <= 5; ++i) {
+//        verificationCode = Sha256.encrypt(email);
+//        if (!resetVerificationCodeRepository.existsByCode(verificationCode)) {
+//          break;
+//        }
+//      }
+//    } catch (NoSuchAlgorithmException e) {
+//      verificationCode = "Create Error";
+//    }
+//
+//    Member member = memberRepository.findByEmail(email)
+//        .orElseThrow(() -> new RuntimeException("미가입 이메일 인증 요청;"));
+//    ResetVerificationCode resetVerificationCode = new ResetVerificationCode();
+//    resetVerificationCode.setMember(member);
+//    resetVerificationCode.setCode(verificationCode);
+//    resetVerificationCodeRepository.save(resetVerificationCode);
+//    return verificationCode;
+//  }
+//
+//  // 비밀번호 초기화 코드 가져오는 로직
+//  public String getResetPasswordVerificationCode(String email) {
+//    Member member = memberRepository.findByEmail(email).orElse(null);
+//    if (member == null || member.getResetVerificationCode() == null) {
+//      return createResetPasswordVerificationCode(email);
+//    }
+//    return member.getResetVerificationCode().getCode();
+//  }
+//
+//  // 비밀번호 초기화 코드를 확인하고 이메일을 리턴해서 프론트의 defaultValue값을 채워주는 로직
+//  public String checkResetPasswordVerificationCode(String code) {
+//    ResetVerificationCode resetVerificationCode = resetVerificationCodeRepository.findByCode(code)
+//        .orElseThrow(() -> new RuntimeException("잘못된 인증 code 인증 시도"));
+//
+//    Member member = resetVerificationCode.getMember();
+//    return member.getEmail();
+//  }
+//
+//  // 비밀번호 초기화 코드와 새로운 비밀번호를 가져와서 Member의 새로운 비밀번호를 넣어주는 로직
+//  @Transactional
+//  public boolean resetPassword(String code, String email, String newPassword) {
+//    ResetVerificationCode resetVerificationCode = resetVerificationCodeRepository.findByCode(code)
+//        .orElseThrow(() -> new RuntimeException("잘못된 인증 code 인증 시도"));
+//    if (Objects.equals(email, resetVerificationCode.getMember().getEmail())) {
+//      Member member = resetVerificationCode.getMember();
+//      member.setPassword(passwordEncoder.encode(newPassword));
+//      memberRepository.save(member);
+//      resetVerificationCodeRepository.delete(resetVerificationCode);
+//      return true;
+//    } else {
+//      return false;
+//    }
+//  }
 }

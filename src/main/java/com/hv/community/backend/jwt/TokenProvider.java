@@ -2,6 +2,7 @@ package com.hv.community.backend.jwt;
 
 
 import com.hv.community.backend.dto.TokenDto;
+import com.hv.community.backend.exception.MemberException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -96,7 +97,7 @@ public class TokenProvider implements InitializingBean {
     Claims claims = parseClaims(accessToken);
     logger.debug(String.valueOf(claims));
     if (claims.get(AUTHORITIES_KEY) == null) {
-      throw new RuntimeException("권한 정보가 없는 토큰입니다.");
+      throw new MemberException("MEMBER:GET_AUTHENTICATION_FAIL");
     }
 
     // claims 에서 권한 목록 획득
@@ -119,6 +120,9 @@ public class TokenProvider implements InitializingBean {
     }
   }
 
+  // JwtFilter-doFilterInternal에서 OncePerRequestFilter를 통해 요청들어올때 마다 검사
+  // header에 jwt가 있을때 jwt값 검증
+  // 에러를 TokenValidExceptionHandlerFilter로 넘겨줌
   public boolean validateToken(String token) {
     try {
       Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);

@@ -1,11 +1,12 @@
 package com.hv.community.backend.jwt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hv.community.backend.dto.ErrorResponseDto;
+import io.sentry.Sentry;
+import io.sentry.protocol.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,8 +34,18 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
     response.setStatus(HttpStatus.UNAUTHORIZED.value());
     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
     response.setCharacterEncoding("UTF-8");
-    Map<String, String> errorDetails = new HashMap<>();
-    errorDetails.put("unauthorized", "unauthorized");
-    objectMapper.writeValue(response.getWriter(), errorDetails);
+    objectMapper.writeValue(response.getWriter(),
+        ErrorResponseDto.of("TOKEN:UNAUTHORIZED", "허가되지 않은 유저입니다"));
+    configureSentryScope("TOKEN:UNAUTHORIZED", request);
+  }
+
+  private void configureSentryScope(String id, HttpServletRequest request) {
+    Sentry.withScope(scope -> {
+      // IP 항상 기본으로 수집
+      User user = new User();
+      user.setIpAddress(request.getRemoteAddr());
+      Sentry.setUser(user);
+      Sentry.captureMessage(id);
+    });
   }
 }

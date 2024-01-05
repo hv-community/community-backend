@@ -27,7 +27,7 @@ public class SignupRequestDtoValidator implements Validator {
 
     // 이메일 유효성검사
     if (signupRequestDto.getEmail() == null || signupRequestDto.getEmail().trim().isEmpty()) {
-      throw new MemberException("MEMBER:EMAIL_EMPTY");
+      throw new MemberException("MEMBER:EMAIL_FORM_ERROR");
     } else {
       Matcher matcher = pattern.matcher(signupRequestDto.getEmail());
       if (!matcher.matches()) {

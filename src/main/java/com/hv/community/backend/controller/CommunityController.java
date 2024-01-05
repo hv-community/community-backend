@@ -1,16 +1,13 @@
 package com.hv.community.backend.controller;
 
-import com.hv.community.backend.dto.ResponseErrorDto;
 import com.hv.community.backend.dto.community.CheckPostPasswordRequestDto;
 import com.hv.community.backend.dto.community.CheckReplyPasswordRequestDto;
-import com.hv.community.backend.dto.community.CreateCommunityRequestDto;
 import com.hv.community.backend.dto.community.CreatePostRequestDto;
 import com.hv.community.backend.dto.community.CreateReplyRequestDto;
-import com.hv.community.backend.dto.community.DeletePostRequestDto;
-import com.hv.community.backend.dto.community.DeleteReplyRequestDto;
 import com.hv.community.backend.dto.community.GetPostDetailResponseDto;
 import com.hv.community.backend.dto.community.UpdatePostRequestDto;
 import com.hv.community.backend.dto.community.UpdateReplyRequestDto;
+import com.hv.community.backend.exception.CommunityException;
 import com.hv.community.backend.service.community.CommunityService;
 import java.util.HashMap;
 import java.util.Map;
@@ -82,255 +79,161 @@ public class CommunityController {
   // 댓글 삭제
   // accessToken, code
 
-  // POST createCommunity
-  @PostMapping("/create-community")
-  public ResponseEntity createCommunity(
-      @RequestBody CreateCommunityRequestDto createCommunityRequestDto) {
-    try {
-      communityService.createCommunity(createCommunityRequestDto);
-      return ResponseEntity.ok(new HashMap<>());
-    } catch (RuntimeException e) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:CREATE_COMMUNITY_FAIL")
-              .message("커뮤니티 생성에 실패했습니다").build());
-    }
-  }
-
-
   // GET getCommunityList
   // 게시판 리스트 조회
   // id, community, description, thumbnail반환
-  @GetMapping("/get-community-list")
-  public ResponseEntity getCommunityList(
+  @GetMapping("/v1/get-community-list")
+  public ResponseEntity getCommunityListV1(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int page_size) {
-
-    try {
-      Map<String, Object> communityList = communityService.getCommunityList(page, page_size);
-
-      return ResponseEntity.ok(communityList);
-    } catch (RuntimeException e) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:GET_COMMUNITY_LIST_FAIL")
-              .message("커뮤니티 목록을 가져오는데 실패했습니다").build());
-    }
+    Map<String, Object> communityList = communityService.getCommunityListV1(page, page_size);
+    return ResponseEntity.ok(communityList);
   }
 
   // GET getPostList/{community-id}
   // 게시글 목록 조회
   // 게시글 id, title, reply갯수, 작성자
-
-  @GetMapping("/get-post-list/{communityId}")
-  public ResponseEntity getPostList(@PathVariable Long communityId,
+  @GetMapping("/v1/get-post-list/{id}")
+  public ResponseEntity getPostListV1(@PathVariable Long id,
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int page_size) {
-    try {
-      Map<String, Object> postList = communityService.getPostList(communityId, page, page_size);
-      return ResponseEntity.ok(postList);
-    } catch (RuntimeException e) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:GET_POST_LIST_FAIL")
-              .message(e.getMessage()).build());
-    }
+    Map<String, Object> postList = communityService.getPostListV1(id, page, page_size);
+    return ResponseEntity.ok(postList);
   }
 
   // GET getPostDetail/{post-id}
   // 게시글 상세 조회
   // 게시글 id, title, 작성자, reply배열 반환
-  @GetMapping("/get-post-detail/{postId}")
-  public ResponseEntity getPostDetail(@PathVariable Long postId,
+  @GetMapping("/v1/get-post-detail/{id}")
+  public ResponseEntity getPostDetailV1(@PathVariable Long id,
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int page_size) {
-    try {
-      GetPostDetailResponseDto postDetail = communityService.getPostDetail(postId, page, page_size);
-      return ResponseEntity.ok(postDetail);
-    } catch (RuntimeException e) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:EMPTY_POST").message(e.getMessage()).build());
-    }
+    GetPostDetailResponseDto postDetail = communityService.getPostDetailV1(id, page, page_size);
+    return ResponseEntity.ok(postDetail);
   }
 
   // POST createPost
   // 게시글 작성
   // title, content, owner, code
-  @PostMapping("/create-post")
-  public ResponseEntity createPost(@AuthenticationPrincipal User user, @RequestBody
-  CreatePostRequestDto createPostRequestDto) {
+  @PostMapping("/v1/create-post")
+  public ResponseEntity createPostV1(@AuthenticationPrincipal User user,
+      @RequestBody CreatePostRequestDto createPostRequestDto) {
     if (createPostRequestDto.getTitle().trim().isEmpty() || createPostRequestDto.getContent().trim()
         .isEmpty()) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:EMPTY_TITLE_OR_CONTENT")
-              .message("제목 혹은 내용이 비어있습니다").build());
+      throw new CommunityException("COMMUNITY:EMPTY_TITLE_OR_CONTENT");
     }
     String email = getEmail(user);
-    try {
-      Long postId = communityService.createPost(email, createPostRequestDto);
-      Map<String, Object> response = new HashMap<>();
-      response.put("post_id", postId);
-      return ResponseEntity.ok(response);
-    } catch (RuntimeException e) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:CREATE_POST_FAIL").message(e.getMessage())
-              .build());
-    }
+
+    Long postId = communityService.createPostV1(email, createPostRequestDto);
+    Map<String, Object> response = new HashMap<>();
+    response.put("id", postId);
+    return ResponseEntity.ok(response);
   }
 
   // POST checkPostPassword
   // 등록된 유저가 아닌 경우 글 수정전에 비밀번호 확인
   // post_id, password
-  @PostMapping("/check-post-password")
-  public ResponseEntity checkPostPassword(
+  @PostMapping("/v1/check-post-password")
+  public ResponseEntity checkPostPasswordV1(
       @RequestBody CheckPostPasswordRequestDto checkPostPasswordRequestDto) {
     if (checkPostPasswordRequestDto.getPassword().trim().isEmpty()) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:CHECK_POST_PASSWORD_FAIL")
-              .message("비밀번호가 비어있습니다").build());
-
+      throw new CommunityException("COMMUNITY:PASSWORD_INVALID");
     }
-    try {
-      if (communityService.checkPostPassword(checkPostPasswordRequestDto)) {
-        return ResponseEntity.ok(new HashMap<>());
-      } else {
-        return ResponseEntity.ok()
-            .body(ResponseErrorDto.builder().id("COMMUNITY:INVALID_PASSWORD")
-                .message("비밀번호가 일치하지 않습니다")
-                .build());
-      }
-    } catch (RuntimeException e) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:EMPTY_POST").message(e.getMessage()).build());
+    if (communityService.checkPostPasswordV1(checkPostPasswordRequestDto)) {
+      return ResponseEntity.ok(new HashMap<>());
+    } else {
+      throw new CommunityException("COMMUNITY:PASSWORD_INVALID");
     }
   }
 
   // POST updatePost
   // 게시글 수정
   // title, content, owner, code
-  @PostMapping("/update-post")
-  public ResponseEntity updatePost(@AuthenticationPrincipal User user, @RequestBody
-  UpdatePostRequestDto updatePostRequestDto) {
+  @PostMapping("/v1/update-post")
+  public ResponseEntity updatePostV1(@AuthenticationPrincipal User user,
+      @RequestBody UpdatePostRequestDto updatePostRequestDto) {
     if (updatePostRequestDto.getTitle().trim().isEmpty() || updatePostRequestDto.getContent().trim()
         .isEmpty()) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:EMPTY_TITLE_OR_CONTENT")
-              .message("제목 혹은 내용이 비어있습니다").build());
-
+      throw new CommunityException("COMMUNITY:EMPTY_TITLE_OR_CONTENT");
     }
     String email = getEmail(user);
-    try {
-      communityService.updatePost(email, updatePostRequestDto);
-      return ResponseEntity.ok(new HashMap<>());
-    } catch (RuntimeException e) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:UPDATE_POST_FAIL").message(e.getMessage())
-              .build());
-    }
+
+    communityService.updatePostV1(email, updatePostRequestDto);
+    return ResponseEntity.ok(new HashMap<>());
   }
 
   // DELETE deletePost
   // 게시글 삭제
   // accessToken, code
-  @DeleteMapping("/delete-post")
-  public ResponseEntity deletePost(@AuthenticationPrincipal User user, @RequestBody
-  DeletePostRequestDto deletePostRequestDto) {
+  @DeleteMapping("/v1/delete-post")
+  public ResponseEntity deletePostV1(@AuthenticationPrincipal User user, @RequestParam Long id,
+      @RequestParam String password) {
     String email = getEmail(user);
-    try {
-      communityService.deletePost(email, deletePostRequestDto);
-      return ResponseEntity.ok(new HashMap<>());
-    } catch (RuntimeException e) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:DELETE_POST_FAIL").message(e.getMessage())
-              .build());
-    }
+
+    communityService.deletePostV1(email, id, password);
+    return ResponseEntity.ok(new HashMap<>());
   }
 
   // POST createReply
   // 댓글 작성
   // reply, owner, code
-  @PostMapping("/create-reply")
-  public ResponseEntity createReply(@AuthenticationPrincipal User user, @RequestBody
-  CreateReplyRequestDto createReplyRequestDto) {
+  @PostMapping("/v1/create-reply")
+  public ResponseEntity createReplyV1(@AuthenticationPrincipal User user,
+      @RequestBody CreateReplyRequestDto createReplyRequestDto) {
     if (createReplyRequestDto.getReply().trim().isEmpty()) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:EMPTY_REPLY").message("댓글 내용이 없습니다").build());
+      throw new CommunityException("COMMUNITY:EMPTY_REPLY");
     }
     String email = getEmail(user);
-    try {
-      Long replyId = communityService.createReply(email, createReplyRequestDto);
-      Map<String, Object> response = new HashMap<>();
-      response.put("reply_id", replyId);
-      return ResponseEntity.ok(response);
 
-    } catch (RuntimeException e) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:CREATE_REPLY_FAIL").message(e.getMessage())
-              .build());
-    }
-
+    Long replyId = communityService.createReplyV1(email, createReplyRequestDto);
+    Map<String, Object> response = new HashMap<>();
+    response.put("reply_id", replyId);
+    return ResponseEntity.ok(response);
   }
 
   // POST checkReplyPassword
   // 등록된 유저가 아닌 경우 댓글 수정전에 비밀번호 확인
   // reply_id, password
-  @PostMapping("/check-reply-password")
-  public ResponseEntity checkReplyPassword(
+  @PostMapping("/v1/check-reply-password")
+  public ResponseEntity checkReplyPasswordV1(
       @RequestBody CheckReplyPasswordRequestDto checkReplyPasswordRequestDto) {
     if (checkReplyPasswordRequestDto.getPassword().trim().isEmpty()) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:CHECK_REPLY_PASSWORD_FAIL")
-              .message("비밀번호가 비어있습니다").build());
+      throw new CommunityException("COMMUNITY:PASSWORD_INVALID");
     }
-    try {
-      if (communityService.checkReplyPassword(checkReplyPasswordRequestDto)) {
-        return ResponseEntity.ok(new HashMap<>());
-      } else {
-        return ResponseEntity.ok()
-            .body(ResponseErrorDto.builder().id("COMMUNITY:INVALID_PASSWORD")
-                .message("비밀번호가 일치하지 않습니다")
-                .build());
-      }
-    } catch (RuntimeException e) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:EMPTY_REPLY").message(e.getMessage()).build());
+    if (communityService.checkReplyPasswordV1(checkReplyPasswordRequestDto)) {
+      return ResponseEntity.ok(new HashMap<>());
+    } else {
+      throw new CommunityException("COMMUNITY:PASSWORD_INVALID");
     }
   }
 
   // POST updateReply
   // 댓글 수정
   // reply, owner, code
-  @PostMapping("/update-reply")
-  public ResponseEntity updateReply(@AuthenticationPrincipal User user, @RequestBody
+  @PostMapping("/v1/update-reply")
+  public ResponseEntity updateReplyV1(@AuthenticationPrincipal User user, @RequestBody
   UpdateReplyRequestDto updateReplyRequestDto) {
     if (updateReplyRequestDto.getReply().trim().isEmpty()) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:EMPTY_REPLY").message("댓글 내용이 없습니다"));
+      throw new CommunityException("COMMUNITY:EMPTY_REPLY");
     }
     String email = getEmail(user);
-    try {
-      communityService.updateReply(email, updateReplyRequestDto);
-      return ResponseEntity.ok(new HashMap<>());
-    } catch (RuntimeException e) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:UPDATE_REPLY_FAIL").message(e.getMessage()));
-    }
+
+    communityService.updateReplyV1(email, updateReplyRequestDto);
+    return ResponseEntity.ok(new HashMap<>());
   }
 
   // DELETE deleteReply
   // 댓글 삭제
   // accessToken, code
-  @DeleteMapping("/delete-reply")
-  public ResponseEntity deleteReply(@AuthenticationPrincipal User user, @RequestBody
-  DeleteReplyRequestDto deleteReplyRequestDto) {
+  @DeleteMapping("/v1/delete-reply")
+  public ResponseEntity deleteReplyV1(@AuthenticationPrincipal User user,
+      @RequestParam Long id,
+      @RequestParam String password) {
     String email = getEmail(user);
-    try {
-      communityService.deleteReply(email, deleteReplyRequestDto);
-      return ResponseEntity.ok(new HashMap<>());
-    } catch (RuntimeException e) {
-      return ResponseEntity.badRequest().body(
-          ResponseErrorDto.builder().id("COMMUNITY:DELETE_REPLY_FAIL").message(e.getMessage())
-              .build());
-    }
-  }
 
+    communityService.deleteReplyV1(email, id, password);
+    return ResponseEntity.ok(new HashMap<>());
+  }
 
   private String getEmail(User user) {
     if (user == null) {

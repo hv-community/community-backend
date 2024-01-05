@@ -1,5 +1,6 @@
 package com.hv.community.backend.service.mail;
 
+import com.hv.community.backend.exception.MailException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,18 +20,18 @@ public class MailService {
   @Autowired
   private final JavaMailSender javaMailSender;
 
-  public void sendEmail(String toEmail, String title, String text) {
-    SimpleMailMessage emailForm = createEmailForm(toEmail, title, text);
+  public void sendEmailV1(String toEmail, String title, String text) {
+    SimpleMailMessage emailForm = createEmailFormV1(toEmail, title, text);
     try {
       javaMailSender.send(emailForm);
-    } catch (RuntimeException e) {
+    } catch (Exception e) {
       logger.debug("MailService.sendEmail exception occur toEmail: {}, " + "title: {}, text: {}",
           toEmail, title, text);
-      throw new RuntimeException("메일 발송 중 오류가 발생했습니다.");
+      throw new MailException("MAIL:SEND_MAIL_FAIL");
     }
   }
 
-  public SimpleMailMessage createEmailForm(String toEmail, String title, String text) {
+  public SimpleMailMessage createEmailFormV1(String toEmail, String title, String text) {
     SimpleMailMessage message = new SimpleMailMessage();
     message.setTo(toEmail);
     message.setSubject(title);

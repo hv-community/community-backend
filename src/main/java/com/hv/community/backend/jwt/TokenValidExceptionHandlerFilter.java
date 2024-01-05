@@ -1,15 +1,15 @@
 package com.hv.community.backend.jwt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hv.community.backend.dto.ResponseDto;
+import com.hv.community.backend.dto.ErrorResponseDto;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.sentry.Sentry;
+import io.sentry.protocol.User;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,34 +31,43 @@ public class TokenValidExceptionHandlerFilter extends OncePerRequestFilter {
     this.objectMapper = objectMapper;
   }
 
+  // JwtFilter-doFilterInternal > TokenProvider-validateToken에서 오류발생시 실행
   @Override
-  protected void doFilterInternal(HttpServletRequest httpServletRequest,
-      HttpServletResponse httpServletResponse, FilterChain filterChain)
+  protected void doFilterInternal(HttpServletRequest request,
+      HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
     try {
-      filterChain.doFilter(httpServletRequest, httpServletResponse);
+      filterChain.doFilter(request, response);
     }
     // 만료된 토큰
     catch (ExpiredJwtException expiredJwtException) {
       logger.debug("ExpiredJwtException 예외 발생");
-      httpServletResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
-      httpServletResponse.setContentType(MediaType.APPLICATION_JSON_VALUE);
-      httpServletResponse.setCharacterEncoding("UTF-8");
-      Map<String, String> errorCode = new HashMap<>();
-      errorCode.put("accessToken", "TOKEN_EXPIRED");
-      objectMapper.writeValue(httpServletResponse.getWriter(),
-          ResponseDto.builder().status("401").message("TOKEN_EXPIRED").errors(errorCode).build());
+      tokenException("TOKEN:TOKEN_EXPIRED", "만료된 JWT 토큰입니다", request, response);
     }
     // 잘못된 토큰
     catch (InvalidAccessTokenException invalidAccessTokenException) {
       logger.debug("InvalidAccessTokenException 예외 발생");
-      httpServletResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
-      httpServletResponse.setContentType(MediaType.APPLICATION_JSON_VALUE);
-      httpServletResponse.setCharacterEncoding("UTF-8");
-      Map<String, String> errorCode = new HashMap<>();
-      errorCode.put("accessToken", "TOKEN_INVALID");
-      objectMapper.writeValue(httpServletResponse.getWriter(),
-          ResponseDto.builder().status("401").message("TOKEN_INVALID").errors(errorCode).build());
+      tokenException("TOKEN:TOKEN_INVALID", "잘못된 JWT 토큰입니다", request, response);
     }
+  }
+
+  private void tokenException(String id, String message, HttpServletRequest request,
+      HttpServletResponse response) throws IOException {
+    response.setStatus(HttpStatus.UNAUTHORIZED.value());
+    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+    response.setCharacterEncoding("UTF-8");
+    objectMapper.writeValue(response.getWriter(),
+        ErrorResponseDto.of(id, message));
+    configureSentryScope(id, request);
+  }
+
+  private void configureSentryScope(String id, HttpServletRequest request) {
+    Sentry.withScope(scope -> {
+      // IP 항상 기본으로 수집
+      User user = new User();
+      user.setIpAddress(request.getRemoteAddr());
+      Sentry.setUser(user);
+      Sentry.captureMessage(id);
+    });
   }
 }

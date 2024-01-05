@@ -4,16 +4,14 @@ import com.hv.community.backend.domain.community.Community;
 import com.hv.community.backend.domain.community.Post;
 import com.hv.community.backend.domain.community.Reply;
 import com.hv.community.backend.domain.member.Member;
-import com.hv.community.backend.dto.community.CheckPostPasswordRequestDto;
-import com.hv.community.backend.dto.community.CheckReplyPasswordRequestDto;
-import com.hv.community.backend.dto.community.CreatePostRequestDto;
-import com.hv.community.backend.dto.community.CreateReplyRequestDto;
-import com.hv.community.backend.dto.community.GetCommunityListResponseDto;
-import com.hv.community.backend.dto.community.GetPostDetailResponseDto;
+import com.hv.community.backend.dto.community.CommunityListResponseDto;
+import com.hv.community.backend.dto.community.PostCreateRequestDto;
+import com.hv.community.backend.dto.community.PostDetailResponseDto;
 import com.hv.community.backend.dto.community.PostDto;
+import com.hv.community.backend.dto.community.PostUpdateRequestDto;
+import com.hv.community.backend.dto.community.ReplyCreateRequestDto;
 import com.hv.community.backend.dto.community.ReplyDto;
-import com.hv.community.backend.dto.community.UpdatePostRequestDto;
-import com.hv.community.backend.dto.community.UpdateReplyRequestDto;
+import com.hv.community.backend.dto.community.ReplyUpdateRequestDto;
 import com.hv.community.backend.exception.CommunityException;
 import com.hv.community.backend.exception.MemberException;
 import com.hv.community.backend.repository.community.CommunityRepository;
@@ -55,79 +53,73 @@ public class CommunityService {
     this.passwordEncoder = passwordEncoder;
   }
 
-  // POST createCommunity
-
-  // GET getCommunityList
+  // GET /v1/list
   // 게시판 리스트 조회
-  // id, community, description, thumbnail반환
+  // page, page_size
+  // id, community, description, thumbnail 반환
 
-  // GET getPostList/{community-id}
+  // GET /v1/{community_id}/get
   // 게시글 목록 조회
-  // 게시글 id, title, reply갯수, 작성자
+  // community_id, page, page_size
+  // 페이지 수, 게시글 목록 반환
 
-  // GET getPostDetail/{post-id}
+  // GET /v1/{community_id}/{post_id}/get
   // 게시글 상세 조회
-  // 게시글 id, title, 작성자, reply배열 반환
+  // post_id, page, page_size
+  // 게시글 id, title, 작성자, reply 배열 반환
 
-  // POST createPost
+  // POST /v1/{community_id}/create
   // 게시글 작성
-  // title, content, member, password
+  // accessToken, title, content, nickname, password
 
-  // POST checkPostPassword
-  // 등록된 유저가 아닌 경우 글 수정전에 비밀번호 확인
-  // post_id, password
+  // GET /v1/{community_id}/{post_id}/check?password=
+  // 등록된 유저가 아닌 경우 글 수정 전에 비밀 번호 확인
+  // community_id, post_id, password
 
-  // POST updatePost
+  // POST /v1/{community_id}/{post_id}/update
   // 게시글 수정
-  // post_id, title, content, member, password
+  // accessToken, community_id, post_id, title, content, password
 
-  // DELETE deletePost
+  // DELETE /v1/{community_id}/{post_id}/delete?password=
   // 게시글 삭제
-  // accessToken, code
+  // accessToken, community_id, post_id, password
 
-  // POST createReply
+  // POST /v1/{community_id}/{post_id}/create
   // 댓글 작성
-  // reply, owner, code
+  // accessToken, community_id, post_id, reply, nickname, password
 
-  // POST checkReplyPassword
-  // 등록된 유저가 아닌 경우 댓글 수정전에 비밀번호 확인
-  // reply_id, password
+  // GET /v1/{community_id}/{post_id}/{reply_id}/check?password=
+  // 등록된 유저가 아닌 경우 댓글 수정 전에 비밀 번호 확인
+  // community_id, post_id, reply_id, password
 
-  // POST updateReply
+  // POST /v1/{community_id}/{post_id}/{reply_id}/update
   // 댓글 수정
-  // reply, owner, code
+  // accessToken, community_id, post_id, reply_id, reply, password
 
-  // DELETE deleteReply
+  // DELETE /v1/{community_id}/{post_id}/{reply_id}/delete?password=
   // 댓글 삭제
-  // accessToken, code
-
-  // test code
-  // POST createCommunity
-//  public void createCommunity(CreateCommunityRequestDto createCommunityRequestDto) {
-//    Community community = new Community();
-//    community.setTitle(createCommunityRequestDto.getTitle());
-//    community.setDescription(community.getDescription());
-//    communityRepository.save(community);
-//  }
+  // accessToken, community_id, post_id, reply_id, password
 
 
-  // GET getCommunityList
+  // GET /v1/list
   // 게시판 리스트 조회
-  // id, community, description, thumbnail반환
-  public Map<String, Object> getCommunityListV1(Integer page, Integer pageSize) {
+  // page, page_size
+  // id, community, description, thumbnail 반환
+  public Map<String, Object> communityListV1(Integer page, Integer pageSize) {
     if (page == null || page < 1 || pageSize == null || pageSize < 1) {
-      // 1보다 작거나 없는경우 에러리턴
+      // 1보다 작거나 없는 경우 에러 리턴
       throw new CommunityException("COMMUNITY:PAGE_INVALID");
     }
 
     Pageable pageable = PageRequest.of(page - 1, pageSize);
     Page<Community> communityList = communityRepository.findAll(pageable);
-    List<GetCommunityListResponseDto> communityListResponseDtos = communityList.stream()
-        .map(GetCommunityListResponseDto::of).toList();
+    List<CommunityListResponseDto> communityListResponseDtos = communityList.stream()
+        .map(CommunityListResponseDto::of).toList();
     Map<String, Object> responseData = new HashMap<>();
 
-    if (page > communityList.getTotalPages()) {
-      // 초과에러 리턴
+    if ((page - 1 > communityList.getTotalPages() && !communityList.isEmpty())
+        || (page > 1 && communityList.isEmpty())) {
+      // 초과 에러 리턴
       throw new CommunityException("COMMUNITY:PAGE_INVALID");
     }
 
@@ -141,7 +133,7 @@ public class CommunityService {
       responseData.put("page_size", pageSize);
       responseData.put("prev", prev);
       responseData.put("next", next);
-      responseData.put("communities", communityListResponseDtos);
+      responseData.put("items", communityListResponseDtos);
 
       return responseData;
     } catch (Exception e) {
@@ -149,12 +141,14 @@ public class CommunityService {
     }
   }
 
-  // GET getPostList/{community-id}
+
+  // GET /v1/{community_id}/get
   // 게시글 목록 조회
-  // 게시글 id, title, reply갯수, 작성자
-  public Map<String, Object> getPostListV1(Long communityId, Integer page, Integer pageSize) {
+  // community_id, page, page_size
+  // 페이지 수, 게시글 목록 반환
+  public Map<String, Object> postListV1(Long communityId, Integer page, Integer pageSize) {
     if (page == null || page < 1 || pageSize == null || pageSize < 1) {
-      // 1보다 작거나 없는경우 에러리턴
+      // 1보다 작거나 없는 경우 에러 리턴
       throw new CommunityException("COMMUNITY:PAGE_INVALID");
     }
     Community community = communityRepository.findById(communityId)
@@ -162,8 +156,9 @@ public class CommunityService {
 
     Pageable pageable = PageRequest.of(page - 1, pageSize);
     Page<Post> postPage = postRepository.findByCommunity(community, pageable);
-    if (page > postPage.getTotalPages()) {
-      // 초과에러 리턴
+    if ((page - 1 > postPage.getTotalPages() && !postPage.isEmpty())
+        || (page > 1 && postPage.isEmpty())) {
+      // 초과 에러 리턴
       throw new CommunityException("COMMUNITY:PAGE_INVALID");
     }
     try {
@@ -180,7 +175,7 @@ public class CommunityService {
       responseData.put("page_size", pageSize);
       responseData.put("prev", prev);
       responseData.put("next", next);
-      responseData.put("posts", postDtos);
+      responseData.put("items", postDtos);
 
       return responseData;
     } catch (Exception e) {
@@ -188,13 +183,13 @@ public class CommunityService {
     }
   }
 
-
-  // GET getPostDetail/{post-id}
+  // GET /v1/{community_id}/{post_id}/get
   // 게시글 상세 조회
-  // 게시글 id, title, 작성자, reply배열 반환
-  public GetPostDetailResponseDto getPostDetailV1(Long postId, Integer page, Integer pageSize) {
+  // post_id, page, page_size
+  // 게시글 id, title, 작성자, reply 배열 반환
+  public PostDetailResponseDto postDetailV1(Long postId, Integer page, Integer pageSize) {
     if (page == null || page < 1 || pageSize == null || pageSize < 1) {
-      // 1보다 작거나 없는경우 에러리턴
+      // 1보다 작거나 없는 경우 에러 리턴
       throw new CommunityException("COMMUNITY:PAGE_INVALID");
     }
 
@@ -203,13 +198,14 @@ public class CommunityService {
     Pageable pageable = PageRequest.of(page - 1, pageSize);
     Page<Reply> replyPage = replyRepository.findByPost(post, pageable);
 
-    if (page > replyPage.getTotalPages()) {
-      // 초과에러 리턴
+    if ((page - 1 > replyPage.getTotalPages() && !replyPage.isEmpty())
+        || (page > 1 && replyPage.isEmpty())) {
+      // 초과 에러 리턴
       throw new CommunityException("COMMUNITY:PAGE_INVALID");
     }
     try {
       List<ReplyDto> replyDtoList = replyPage.stream().map(ReplyDto::of).toList();
-      return GetPostDetailResponseDto.of(post,
+      return PostDetailResponseDto.of(post,
           replyDtoList,
           replyPage.getNumber(),
           replyPage.getTotalPages(),
@@ -221,25 +217,27 @@ public class CommunityService {
     }
   }
 
-  // POST createPost
+
+  // POST /v1/{community_id}/create
   // 게시글 작성
-  // title, content, member, password
-  public Long createPostV1(String email, CreatePostRequestDto createPostRequestDto) {
-    Community community = communityRepository.findById(createPostRequestDto.getCommunity_id())
+  // accessToken, title, content, nickname, password
+  public Long postCreateV1(String email, Long communityId,
+      PostCreateRequestDto postCreateRequestDto) {
+    Community community = communityRepository.findById(communityId)
         .orElseThrow(() -> new CommunityException("COMMUNITY:COMMUNITY_INVALID"));
 
     Post post = new Post();
-    post.setTitle(createPostRequestDto.getTitle());
-    post.setContent(createPostRequestDto.getContent());
-    post.setReplyCount(0);
+    post.setTitle(postCreateRequestDto.getTitle());
+    post.setContent(postCreateRequestDto.getContent());
     // 유저일때만 email저장 아니면 code만 저장
     if (email.isEmpty()) {
-      post.setNickname(createPostRequestDto.getNickname());
-      post.setPassword(passwordEncoder.encode(createPostRequestDto.getPassword()));
+      post.setNickname(postCreateRequestDto.getNickname());
+      post.setPassword(passwordEncoder.encode(postCreateRequestDto.getPassword()));
     } else {
       Member member = memberRepository.findByEmail(email)
           .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
       post.setMember(member);
+      post.setNickname(member.getNickname());
     }
     try {
       Calendar calendar = Calendar.getInstance();
@@ -254,13 +252,11 @@ public class CommunityService {
     }
   }
 
-  // POST checkPostPassword
-  // 등록된 유저가 아닌 경우 글 수정전에 비밀번호 확인
-  // post_id, password
-  public boolean checkPostPasswordV1(CheckPostPasswordRequestDto checkPostPasswordRequestDto) {
-    Long postId = checkPostPasswordRequestDto.getPost_id();
-    String password = checkPostPasswordRequestDto.getPassword();
-    Post post = postRepository.findById(postId)
+  // GET /v1/{community_id}/{post_id}/check?password=
+  // 등록된 유저가 아닌 경우 글 수정 전에 비밀 번호 확인
+  // community_id, post_id, password
+  public boolean postCheckPasswordV1(Long post_id, String password) {
+    Post post = postRepository.findById(post_id)
         .orElseThrow(() -> new CommunityException("COMMUNITY:POST_INVALID"));
     if (post.getPassword() == null) {
       return false;
@@ -269,11 +265,12 @@ public class CommunityService {
     }
   }
 
-  // POST updatePost
+
+  // POST /v1/{community_id}/{post_id}/update
   // 게시글 수정
-  // post_id, title, content, member, password
-  public void updatePostV1(String email, UpdatePostRequestDto updatePostRequestDto) {
-    Post post = postRepository.findById(updatePostRequestDto.getPost_id())
+  // accessToken, community_id, post_id, title, content, password
+  public void postUpdateV1(String email, Long postId, PostUpdateRequestDto postUpdateRequestDto) {
+    Post post = postRepository.findById(postId)
         .orElseThrow(() -> new CommunityException("COMMUNITY:POST_INVALID"));
     // 등록된 유저가 아닐 경우
     if (email.isEmpty()) {
@@ -281,10 +278,10 @@ public class CommunityService {
       if (post.getPassword() == null) {
         throw new CommunityException("COMMUNITY:PERMISSION_INVALID");
       } else {
-        if (passwordEncoder.matches(updatePostRequestDto.getPassword(), post.getPassword())) {
+        if (passwordEncoder.matches(postUpdateRequestDto.getPassword(), post.getPassword())) {
           try {
-            post.setTitle(updatePostRequestDto.getTitle());
-            post.setContent(updatePostRequestDto.getContent());
+            post.setTitle(postUpdateRequestDto.getTitle());
+            post.setContent(postUpdateRequestDto.getContent());
 
             Calendar calendar = Calendar.getInstance();
             Date currentDate = calendar.getTime();
@@ -303,8 +300,8 @@ public class CommunityService {
         throw new CommunityException("COMMUNITY:PERMISSION_INVALID");
       } else {
         try {
-          post.setTitle(updatePostRequestDto.getTitle());
-          post.setContent(updatePostRequestDto.getContent());
+          post.setTitle(postUpdateRequestDto.getTitle());
+          post.setContent(postUpdateRequestDto.getContent());
 
           Calendar calendar = Calendar.getInstance();
           Date currentDate = calendar.getTime();
@@ -317,10 +314,11 @@ public class CommunityService {
     }
   }
 
-  // DELETE deletePost
+
+  // DELETE /v1/{community_id}/{post_id}/delete?password=
   // 게시글 삭제
-  // accessToken, code
-  public void deletePostV1(String email, Long postId, String password) {
+  // accessToken, community_id, post_id, password
+  public void postDeleteV1(String email, Long postId, String password) {
     Post post = postRepository.findById(postId)
         .orElseThrow(() -> new CommunityException("COMMUNITY:POST_INVALID"));
     // 등록된 유저가 아닐 경우
@@ -353,21 +351,23 @@ public class CommunityService {
     }
   }
 
-  // POST createReply
+  // POST /v1/{community_id}/{post_id}/create
   // 댓글 작성
-  // reply, owner, code
-  public Long createReplyV1(String email, CreateReplyRequestDto createReplyRequestDto) {
-    Post post = postRepository.findById(createReplyRequestDto.getPost_id())
+  // accessToken, community_id, post_id, reply, nickname, password
+  public Long replyCreateV1(String email, Long post_id,
+      ReplyCreateRequestDto replyCreateRequestDto) {
+    Post post = postRepository.findById(post_id)
         .orElseThrow(() -> new CommunityException("COMMUNITY:POST_INVALID"));
     Reply reply = new Reply();
-    reply.setReply(createReplyRequestDto.getReply());
+    reply.setReply(replyCreateRequestDto.getReply());
     if (email.isEmpty()) {
-      reply.setNickname(createReplyRequestDto.getNickname());
-      reply.setPassword(passwordEncoder.encode(createReplyRequestDto.getPassword()));
+      reply.setNickname(replyCreateRequestDto.getNickname());
+      reply.setPassword(passwordEncoder.encode(replyCreateRequestDto.getPassword()));
     } else {
       Member member = memberRepository.findByEmail(email)
           .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
       reply.setMember(member);
+      reply.setNickname(member.getNickname());
     }
     try {
       Calendar calendar = Calendar.getInstance();
@@ -377,7 +377,6 @@ public class CommunityService {
       reply.setCommunity(post.getCommunity());
       reply.setPost(post);
       replyRepository.save(reply);
-      post.setReplyCount(post.getReplyCount() + 1);
       postRepository.save(post);
       return reply.getId();
     } catch (Exception e) {
@@ -385,13 +384,11 @@ public class CommunityService {
     }
   }
 
-  // POST checkReplyPassword
-  // 등록된 유저가 아닌 경우 댓글 수정전에 비밀번호 확인
-  // reply_id, password
-  public boolean checkReplyPasswordV1(CheckReplyPasswordRequestDto checkReplyPasswordRequestDto) {
-    Long replyId = checkReplyPasswordRequestDto.getReply_id();
-    String password = checkReplyPasswordRequestDto.getPassword();
-    Reply reply = replyRepository.findById(replyId)
+  // GET /v1/{community_id}/{post_id}/{reply_id}/check?password=
+  // 등록된 유저가 아닌 경우 댓글 수정 전에 비밀 번호 확인
+  // community_id, post_id, reply_id, password
+  public boolean replyCheckPasswordV1(Long reply_id, String password) {
+    Reply reply = replyRepository.findById(reply_id)
         .orElseThrow(() -> new CommunityException("COMMUNITY:REPLY_INVALID"));
     if (reply.getPassword() == null) {
       return false;
@@ -400,11 +397,12 @@ public class CommunityService {
     }
   }
 
-  // POST updateReply
+  // POST /v1/{community_id}/{post_id}/{reply_id}/update
   // 댓글 수정
-  // reply, owner, code
-  public void updateReplyV1(String email, UpdateReplyRequestDto updateReplyRequestDto) {
-    Reply reply = replyRepository.findById(updateReplyRequestDto.getReply_id())
+  // accessToken, community_id, post_id, reply_id, reply, password
+  public void replyUpdateV1(String email, Long reply_id,
+      ReplyUpdateRequestDto replyUpdateRequestDto) {
+    Reply reply = replyRepository.findById(reply_id)
         .orElseThrow(() -> new CommunityException("COMMUNITY:REPLY_INVALID"));
     // 등록된 유저가 아닐 경우
     if (email.isEmpty()) {
@@ -413,9 +411,9 @@ public class CommunityService {
         throw new CommunityException("COMMUNITY:PASSWORD_INVALID");
       } else {
         // 이메일없는 유저요청 + 등록된 유저가 쓴글이 아닐때 > 비밀번호 검사
-        if (passwordEncoder.matches(updateReplyRequestDto.getPassword(), reply.getPassword())) {
+        if (passwordEncoder.matches(replyUpdateRequestDto.getPassword(), reply.getPassword())) {
           try {
-            reply.setReply(updateReplyRequestDto.getReply());
+            reply.setReply(replyUpdateRequestDto.getReply());
             Calendar calendar = Calendar.getInstance();
             Date currentDate = calendar.getTime();
             reply.setModificationTime(currentDate);
@@ -433,7 +431,7 @@ public class CommunityService {
         throw new CommunityException("COMMUNITY:PERMISSION_INVALID");
       } else {
         try {
-          reply.setReply(updateReplyRequestDto.getReply());
+          reply.setReply(replyUpdateRequestDto.getReply());
           Calendar calendar = Calendar.getInstance();
           Date currentDate = calendar.getTime();
           reply.setModificationTime(currentDate);
@@ -445,11 +443,11 @@ public class CommunityService {
     }
   }
 
-  // DELETE deleteReply
+  // DELETE /v1/{community_id}/{post_id}/{reply_id}/delete?password=
   // 댓글 삭제
-  // accessToken, code
-  public void deleteReplyV1(String email, Long replyId, String password) {
-    Reply reply = replyRepository.findById(replyId)
+  // accessToken, community_id, post_id, reply_id, password
+  public void replyDeleteV1(String email, Long reply_id, String password) {
+    Reply reply = replyRepository.findById(reply_id)
         .orElseThrow(() -> new CommunityException("COMMUNITY:REPLY_INVALID"));
     Post post = reply.getPost();
     // 등록된 유저가 아닐 경우
@@ -461,7 +459,6 @@ public class CommunityService {
         if (passwordEncoder.matches(password, reply.getPassword())) {
           try {
             replyRepository.delete(reply);
-            post.setReplyCount(post.getReplyCount() - 1);
             postRepository.save(post);
           } catch (Exception e) {
             throw new CommunityException("COMMUNITY:DELETE_REPLY_FAIL");
@@ -477,7 +474,6 @@ public class CommunityService {
       } else {
         try {
           replyRepository.delete(reply);
-          post.setReplyCount(post.getReplyCount() - 1);
           postRepository.save(post);
         } catch (Exception e) {
           throw new CommunityException("COMMUNITY:DELETE_REPLY_FAIL");

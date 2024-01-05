@@ -8,15 +8,15 @@ import lombok.Setter;
 @Getter
 @Setter
 @Builder
-public class GetCommunityListResponseDto {
+public class CommunityListResponseDto {
 
   private Long id;
   private String title;
   private String description;
   private String thumbnail;
 
-  public static GetCommunityListResponseDto of(Community community) {
-    return GetCommunityListResponseDto.builder()
+  public static CommunityListResponseDto of(Community community) {
+    return CommunityListResponseDto.builder()
         .id(community.getId())
         .title(community.getTitle())
         .description(community.getDescription())

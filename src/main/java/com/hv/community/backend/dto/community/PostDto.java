@@ -13,16 +13,14 @@ public class PostDto {
 
   private final Long id;
   private final String title;
-  private final int reply_count;
   private final String nickname;
   private final Date creation_time;
   private final Date modification_time;
 
-  public PostDto(Long id, String title, int replyCount, String nickname, Date creationTime,
+  public PostDto(Long id, String title, String nickname, Date creationTime,
       Date modificationTime) {
     this.id = id;
     this.title = title;
-    this.reply_count = replyCount;
     this.nickname = nickname;
     this.creation_time = creationTime;
     modification_time = modificationTime;
@@ -32,7 +30,6 @@ public class PostDto {
     return new PostDto(
         post.getId(),
         post.getTitle(),
-        post.getReplyCount(),
         post.getMember() != null ? post.getMember().getNickname() : post.getNickname(),
         post.getCreationTime(),
         post.getModificationTime()

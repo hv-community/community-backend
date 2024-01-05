@@ -1,12 +1,10 @@
 package com.hv.community.backend.controller;
 
-import com.hv.community.backend.dto.community.CheckPostPasswordRequestDto;
-import com.hv.community.backend.dto.community.CheckReplyPasswordRequestDto;
-import com.hv.community.backend.dto.community.CreatePostRequestDto;
-import com.hv.community.backend.dto.community.CreateReplyRequestDto;
-import com.hv.community.backend.dto.community.GetPostDetailResponseDto;
-import com.hv.community.backend.dto.community.UpdatePostRequestDto;
-import com.hv.community.backend.dto.community.UpdateReplyRequestDto;
+import com.hv.community.backend.dto.community.PostCreateRequestDto;
+import com.hv.community.backend.dto.community.PostDetailResponseDto;
+import com.hv.community.backend.dto.community.PostUpdateRequestDto;
+import com.hv.community.backend.dto.community.ReplyCreateRequestDto;
+import com.hv.community.backend.dto.community.ReplyUpdateRequestDto;
 import com.hv.community.backend.exception.CommunityException;
 import com.hv.community.backend.service.community.CommunityService;
 import java.util.HashMap;
@@ -33,205 +31,215 @@ public class CommunityController {
     this.communityService = communityService;
   }
 
-  // POST createCommunity
-
-  // GET getCommunityList
+  // GET /v1/list
   // 게시판 리스트 조회
-  // id, community, description, thumbnail반환
+  // page, page_size
+  // id, community, description, thumbnail 반환
 
-  // GET getPostList/{community-id}
+  // GET /v1/{community_id}/get
   // 게시글 목록 조회
-  // 게시글 id, title, reply갯수, 작성자
+  // community_id, page, page_size
+  // 페이지 수, 게시글 목록 반환
 
-  // GET getPostDetail/{post-id}
+  // GET /v1/{community_id}/{post_id}/get
   // 게시글 상세 조회
-  // 게시글 id, title, 작성자, reply배열 반환
+  // post_id, page, page_size
+  // 게시글 id, title, 작성자, reply 배열 반환
 
-  // POST createPost
+  // POST /v1/{community_id}/create
   // 게시글 작성
-  // title, content, owner, code
+  // accessToken, title, content, nickname, password
 
-  // POST checkPostPassword
-  // 등록된 유저가 아닌 경우 글 수정전에 비밀번호 확인
-  // post_id, password
+  // GET /v1/{community_id}/{post_id}/check?password=
+  // 등록된 유저가 아닌 경우 글 수정 전에 비밀 번호 확인
+  // community_id, post_id, password
 
-  // POST updatePost
+  // POST /v1/{community_id}/{post_id}/update
   // 게시글 수정
-  // title, content, owner, code
+  // accessToken, community_id, post_id, title, content, password
 
-  // DELETE deletePost
+  // DELETE /v1/{community_id}/{post_id}/delete?password=
   // 게시글 삭제
-  // accessToken, code
+  // accessToken, community_id, post_id, password
 
-  // POST createReply
+  // POST /v1/{community_id}/{post_id}/create
   // 댓글 작성
-  // reply, owner, code
+  // accessToken, community_id, post_id, reply, nickname, password
 
-  // POST checkReplyPassword
-  // 등록된 유저가 아닌 경우 댓글 수정전에 비밀번호 확인
-  // reply_id, password
+  // GET /v1/{community_id}/{post_id}/{reply_id}/check?password=
+  // 등록된 유저가 아닌 경우 댓글 수정 전에 비밀 번호 확인
+  // community_id, post_id, reply_id, password
 
-  // POST updateReply
+  // POST /v1/{community_id}/{post_id}/{reply_id}/update
   // 댓글 수정
-  // reply, owner, code
+  // accessToken, community_id, post_id, reply_id, reply, password
 
-  // DELETE deleteReply
+  // DELETE /v1/{community_id}/{post_id}/{reply_id}/delete?password=
   // 댓글 삭제
-  // accessToken, code
+  // accessToken, community_id, post_id, reply_id, password
 
-  // GET getCommunityList
+
+  // GET /v1/list
   // 게시판 리스트 조회
-  // id, community, description, thumbnail반환
-  @GetMapping("/v1/get-community-list")
-  public ResponseEntity getCommunityListV1(
+  // page, page_size
+  // id, community, description, thumbnail 반환
+  @GetMapping("/v1/list")
+  public ResponseEntity communityListV1(
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int page_size) {
-    Map<String, Object> communityList = communityService.getCommunityListV1(page, page_size);
+    Map<String, Object> communityList = communityService.communityListV1(page, page_size);
     return ResponseEntity.ok(communityList);
   }
 
-  // GET getPostList/{community-id}
+  // GET /v1/{community_id}/get
   // 게시글 목록 조회
-  // 게시글 id, title, reply갯수, 작성자
-  @GetMapping("/v1/get-post-list/{id}")
-  public ResponseEntity getPostListV1(@PathVariable Long id,
+  // community_id, page, page_size
+  // 페이지 수, 게시글 목록 반환
+  @GetMapping("/v1/{community_id}/get")
+  public ResponseEntity postListV1(@PathVariable Long community_id,
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int page_size) {
-    Map<String, Object> postList = communityService.getPostListV1(id, page, page_size);
+    Map<String, Object> postList = communityService.postListV1(community_id, page, page_size);
     return ResponseEntity.ok(postList);
   }
 
-  // GET getPostDetail/{post-id}
+  // GET /v1/{community_id}/{post_id}/get
   // 게시글 상세 조회
-  // 게시글 id, title, 작성자, reply배열 반환
-  @GetMapping("/v1/get-post-detail/{id}")
-  public ResponseEntity getPostDetailV1(@PathVariable Long id,
+  // post_id, page, page_size
+  // 게시글 id, title, 작성자, reply 배열 반환
+  @GetMapping("/v1/{community_id}/{post_id}/get")
+  public ResponseEntity postDetailV1(@PathVariable Long community_id, @PathVariable Long post_id,
       @RequestParam(defaultValue = "1") int page,
       @RequestParam(defaultValue = "10") int page_size) {
-    GetPostDetailResponseDto postDetail = communityService.getPostDetailV1(id, page, page_size);
+    PostDetailResponseDto postDetail = communityService.postDetailV1(post_id, page,
+        page_size);
     return ResponseEntity.ok(postDetail);
   }
 
-  // POST createPost
+  // POST /v1/{community_id}/create
   // 게시글 작성
-  // title, content, owner, code
-  @PostMapping("/v1/create-post")
-  public ResponseEntity createPostV1(@AuthenticationPrincipal User user,
-      @RequestBody CreatePostRequestDto createPostRequestDto) {
-    if (createPostRequestDto.getTitle().trim().isEmpty() || createPostRequestDto.getContent().trim()
+  // accessToken, title, content, nickname, password
+  @PostMapping("/v1/{community_id}/create")
+  public ResponseEntity postCreateV1(@AuthenticationPrincipal User user,
+      @PathVariable Long community_id, @RequestBody PostCreateRequestDto postCreateRequestDto) {
+    if (postCreateRequestDto.getTitle().trim().isEmpty() || postCreateRequestDto.getContent().trim()
         .isEmpty()) {
       throw new CommunityException("COMMUNITY:EMPTY_TITLE_OR_CONTENT");
     }
     String email = getEmail(user);
 
-    Long postId = communityService.createPostV1(email, createPostRequestDto);
+    Long postId = communityService.postCreateV1(email, community_id, postCreateRequestDto);
     Map<String, Object> response = new HashMap<>();
     response.put("id", postId);
     return ResponseEntity.ok(response);
   }
 
-  // POST checkPostPassword
-  // 등록된 유저가 아닌 경우 글 수정전에 비밀번호 확인
-  // post_id, password
-  @PostMapping("/v1/check-post-password")
-  public ResponseEntity checkPostPasswordV1(
-      @RequestBody CheckPostPasswordRequestDto checkPostPasswordRequestDto) {
-    if (checkPostPasswordRequestDto.getPassword().trim().isEmpty()) {
+  // GET /v1/{community_id}/{post_id}/check?password=
+  // 등록된 유저가 아닌 경우 글 수정 전에 비밀 번호 확인
+  // community_id, post_id, password
+  @GetMapping("/v1/{community_id}/{post_id}/check")
+  public ResponseEntity postCheckPasswordV1(@PathVariable Long community_id,
+      @PathVariable Long post_id, @RequestParam String password) {
+    if (password.trim().isEmpty()) {
       throw new CommunityException("COMMUNITY:PASSWORD_INVALID");
     }
-    if (communityService.checkPostPasswordV1(checkPostPasswordRequestDto)) {
+    if (communityService.postCheckPasswordV1(post_id, password)) {
       return ResponseEntity.ok(new HashMap<>());
     } else {
       throw new CommunityException("COMMUNITY:PASSWORD_INVALID");
     }
   }
 
-  // POST updatePost
+  // POST /v1/{community_id}/{post_id}/update
   // 게시글 수정
-  // title, content, owner, code
-  @PostMapping("/v1/update-post")
-  public ResponseEntity updatePostV1(@AuthenticationPrincipal User user,
-      @RequestBody UpdatePostRequestDto updatePostRequestDto) {
-    if (updatePostRequestDto.getTitle().trim().isEmpty() || updatePostRequestDto.getContent().trim()
+  // accessToken, community_id, post_id, title, content, password
+  @PostMapping("/v1/{community_id}/{post_id}/update")
+  public ResponseEntity postUpdateV1(@AuthenticationPrincipal User user,
+      @PathVariable Long community_id, @PathVariable Long post_id,
+      @RequestBody PostUpdateRequestDto postUpdateRequestDto) {
+    if (postUpdateRequestDto.getTitle().trim().isEmpty() || postUpdateRequestDto.getContent().trim()
         .isEmpty()) {
       throw new CommunityException("COMMUNITY:EMPTY_TITLE_OR_CONTENT");
     }
     String email = getEmail(user);
 
-    communityService.updatePostV1(email, updatePostRequestDto);
+    communityService.postUpdateV1(email, post_id, postUpdateRequestDto);
     return ResponseEntity.ok(new HashMap<>());
   }
 
-  // DELETE deletePost
+  // DELETE /v1/{community_id}/{post_id}/delete?password=
   // 게시글 삭제
-  // accessToken, code
-  @DeleteMapping("/v1/delete-post")
-  public ResponseEntity deletePostV1(@AuthenticationPrincipal User user, @RequestParam Long id,
+  // accessToken, community_id, post_id, password
+  @DeleteMapping("/v1/{community_id}/{post_id}/delete")
+  public ResponseEntity postDeleteV1(@AuthenticationPrincipal User user,
+      @PathVariable Long community_id, @PathVariable Long post_id,
       @RequestParam String password) {
     String email = getEmail(user);
 
-    communityService.deletePostV1(email, id, password);
+    communityService.postDeleteV1(email, post_id, password);
     return ResponseEntity.ok(new HashMap<>());
   }
 
-  // POST createReply
+  // POST /v1/{community_id}/{post_id}/create
   // 댓글 작성
-  // reply, owner, code
-  @PostMapping("/v1/create-reply")
-  public ResponseEntity createReplyV1(@AuthenticationPrincipal User user,
-      @RequestBody CreateReplyRequestDto createReplyRequestDto) {
-    if (createReplyRequestDto.getReply().trim().isEmpty()) {
+  // accessToken, community_id, post_id, reply, nickname, password
+  @PostMapping("/v1/{community_id}/{post_id}/create")
+  public ResponseEntity replyCreateV1(@AuthenticationPrincipal User user,
+      @PathVariable Long community_id, @PathVariable Long post_id,
+      @RequestBody ReplyCreateRequestDto replyCreateRequestDto) {
+    if (replyCreateRequestDto.getReply().trim().isEmpty()) {
       throw new CommunityException("COMMUNITY:EMPTY_REPLY");
     }
     String email = getEmail(user);
 
-    Long replyId = communityService.createReplyV1(email, createReplyRequestDto);
+    Long replyId = communityService.replyCreateV1(email, post_id, replyCreateRequestDto);
     Map<String, Object> response = new HashMap<>();
-    response.put("reply_id", replyId);
+    response.put("id", replyId);
     return ResponseEntity.ok(response);
   }
 
-  // POST checkReplyPassword
-  // 등록된 유저가 아닌 경우 댓글 수정전에 비밀번호 확인
-  // reply_id, password
-  @PostMapping("/v1/check-reply-password")
-  public ResponseEntity checkReplyPasswordV1(
-      @RequestBody CheckReplyPasswordRequestDto checkReplyPasswordRequestDto) {
-    if (checkReplyPasswordRequestDto.getPassword().trim().isEmpty()) {
+  // GET /v1/{community_id}/{post_id}/{reply_id}/check?password=
+  // 등록된 유저가 아닌 경우 댓글 수정 전에 비밀 번호 확인
+  // community_id, post_id, reply_id, password
+  @GetMapping("/v1/{community_id}/{post_id}/{reply_id}/check")
+  public ResponseEntity replyCheckPasswordV1(@PathVariable Long community_id,
+      @PathVariable Long post_id, @PathVariable Long reply_id, @RequestParam String password) {
+    if (password.trim().isEmpty()) {
       throw new CommunityException("COMMUNITY:PASSWORD_INVALID");
     }
-    if (communityService.checkReplyPasswordV1(checkReplyPasswordRequestDto)) {
+    if (communityService.replyCheckPasswordV1(reply_id, password)) {
       return ResponseEntity.ok(new HashMap<>());
     } else {
       throw new CommunityException("COMMUNITY:PASSWORD_INVALID");
     }
   }
 
-  // POST updateReply
+  // POST /v1/{community_id}/{post_id}/{reply_id}/update
   // 댓글 수정
-  // reply, owner, code
-  @PostMapping("/v1/update-reply")
-  public ResponseEntity updateReplyV1(@AuthenticationPrincipal User user, @RequestBody
-  UpdateReplyRequestDto updateReplyRequestDto) {
-    if (updateReplyRequestDto.getReply().trim().isEmpty()) {
+  // accessToken, community_id, post_id, reply_id, reply, password
+  @PostMapping("/v1/{community_id}/{post_id}/{reply_id}/update")
+  public ResponseEntity replyUpdateV1(@AuthenticationPrincipal User user,
+      @PathVariable Long community_id, @PathVariable Long post_id, @PathVariable Long reply_id,
+      @RequestBody ReplyUpdateRequestDto replyUpdateRequestDto) {
+    if (replyUpdateRequestDto.getReply().trim().isEmpty()) {
       throw new CommunityException("COMMUNITY:EMPTY_REPLY");
     }
     String email = getEmail(user);
 
-    communityService.updateReplyV1(email, updateReplyRequestDto);
+    communityService.replyUpdateV1(email, reply_id, replyUpdateRequestDto);
     return ResponseEntity.ok(new HashMap<>());
   }
 
-  // DELETE deleteReply
+  // DELETE /v1/{community_id}/{post_id}/{reply_id}/delete?password=
   // 댓글 삭제
-  // accessToken, code
-  @DeleteMapping("/v1/delete-reply")
-  public ResponseEntity deleteReplyV1(@AuthenticationPrincipal User user,
-      @RequestParam Long id,
+  // accessToken, community_id, post_id, reply_id, password
+  @DeleteMapping("/v1/{community_id}/{post_id}/{reply_id}/delete")
+  public ResponseEntity replyDeleteV1(@AuthenticationPrincipal User user,
+      @PathVariable Long community_id, @PathVariable Long post_id, @PathVariable Long reply_id,
       @RequestParam String password) {
     String email = getEmail(user);
 
-    communityService.deleteReplyV1(email, id, password);
+    communityService.replyDeleteV1(email, reply_id, password);
     return ResponseEntity.ok(new HashMap<>());
   }
 

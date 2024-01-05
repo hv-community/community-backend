@@ -5,7 +5,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class ActivateEmailRequestDto {
+public class EmailActivateRequestDto {
 
   private String token;
   private String verification_code;

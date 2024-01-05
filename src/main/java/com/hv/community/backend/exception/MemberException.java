@@ -28,7 +28,7 @@ public class MemberException extends RuntimeException {
         return ErrorResponseDto.of(id, "이미 존재하는 이메일입니다");
       case "MEMBER:NICKNAME_EXIST":
         return ErrorResponseDto.of(id, "이미 존재하는 닉네임입니다");
-      case "MEMBER:MEMBER_UNREGISTER":
+      case "MEMBER:MEMBER_UNREGISTERED":
         return ErrorResponseDto.of(id, "유저 정보가 없습니다");
       case "MEMBER:REFRESH_TOKEN_INVALID":
         return ErrorResponseDto.of(id, "토큰이 유효하지 않습니다");

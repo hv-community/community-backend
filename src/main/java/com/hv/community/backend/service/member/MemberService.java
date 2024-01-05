@@ -5,7 +5,7 @@ import com.hv.community.backend.domain.member.Member;
 import com.hv.community.backend.domain.member.MemberTemp;
 import com.hv.community.backend.domain.member.Role;
 import com.hv.community.backend.dto.TokenDto;
-import com.hv.community.backend.dto.member.ActivateEmailRequestDto;
+import com.hv.community.backend.dto.member.EmailActivateRequestDto;
 import com.hv.community.backend.dto.member.SignupRequestDto;
 import com.hv.community.backend.exception.MemberException;
 import com.hv.community.backend.jwt.TokenProvider;
@@ -63,12 +63,12 @@ public class MemberService {
     this.roleRepository = roleRepository;
   }
 
-  // POST checkEmailDuplication
+  // POST /v1/signup
   // 유저등록전 중복검사 로직
   // email, nickname, password
   // 토큰 만료여부 판단후 signup 실행
 
-  // signup
+  // POST /v1/signup
   // 유저 등록로직
   // email, nickname, password
   // token반환 및 verificationCode(6자리 숫자)메일로 발송
@@ -79,29 +79,24 @@ public class MemberService {
   // createEmailVerificationCode
   // n자리 랜던 번호를 받아서 memberTemp에 토큰과 같이 저장
 
+  // POST /v1/email/send
   // getEmailVerificationCode
   // 만들어진 코드가 있는지 확인하고 없으면 createEmailVerificationCode 실행
 
-  // POST sendEmailVerificationCode
-  // 이메일 재발송 로직
-  // token
-  // verificationCode(6자리 숫자)메일로 발송
-
-  // POST activateEmail
+  // POST /v1/email/activate
   // 이메일 활성화 로직
   // token, verificationCode
 
-  // POST signin
+  // POST /v1/signin
   // 로그인
   // email, password
   // accessToken, refreshToken 반환
 
-  // GET getMyProfile
-  // email, name fetch
+  // GET /v1/profile
   // accessToken
   // email, name return
 
-  // POST checkEmailDuplication
+  // POST /v1/signup
   // 유저등록전 중복검사 로직
   // email, nickname, password
   // 토큰 만료여부 판단후 signup 실행
@@ -146,7 +141,7 @@ public class MemberService {
     return signupV1(signupRequestDto);
   }
 
-  // signup
+  // POST /v1/signup
   // 유저 등록로직
   // email, nickname, password
   // token반환 및 verificationCode(6자리 숫자)메일로 발송
@@ -209,6 +204,7 @@ public class MemberService {
     }
   }
 
+  // POST /v1/email/send
   // getEmailVerificationCode
   // 만들어진 코드가 있는지 확인하고 없으면 createEmailVerificationCode 실행
   public Map<String, String> getEmailVerificationCodeV1(String token) {
@@ -230,12 +226,12 @@ public class MemberService {
   }
 
 
-  // POST activateEmail
+  // POST /v1/email/activate
   // 이메일 활성화 로직
   // token, verificationCode
-  public void activateEmailV1(ActivateEmailRequestDto activateEmailRequestDto) {
-    String token = activateEmailRequestDto.getToken();
-    String verificationCode = activateEmailRequestDto.getVerification_code();
+  public void emailActivateV1(EmailActivateRequestDto emailActivateRequestDto) {
+    String token = emailActivateRequestDto.getToken();
+    String verificationCode = emailActivateRequestDto.getVerification_code();
 
     MemberTemp memberTemp = memberTempRepository.findByCode(verificationCode)
         .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
@@ -252,7 +248,7 @@ public class MemberService {
     }
   }
 
-  // POST signin
+  // POST /v1/signin
   // 로그인
   // email, password
   // accessToken, refreshToken 반환
@@ -285,11 +281,10 @@ public class MemberService {
     }
   }
 
-  // GET getMyProfile
-  // email, name fetch
+  // GET /v1/profile
   // accessToken
   // email, name return
-  public Map<String, String> getMyProfileV1(String email) {
+  public Map<String, String> profileV1(String email) {
     Member member = memberRepository.findByEmail(email)
         .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
     try {

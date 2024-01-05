@@ -5,9 +5,10 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class UpdateReplyRequestDto {
+public class PostCreateRequestDto {
 
-  private Long reply_id;
-  private String reply;
+  private String title;
+  private String content;
+  private String nickname;
   private String password;
 }

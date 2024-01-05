@@ -5,8 +5,9 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class DeleteReplyRequestDto {
+public class ReplyCreateRequestDto {
 
-  private Long reply_id;
+  private String reply;
+  private String nickname;
   private String password;
 }

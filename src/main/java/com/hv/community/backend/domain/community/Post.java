@@ -40,9 +40,6 @@ public class Post {
   @Column(name = "content")
   private String content;
 
-  @Column(name = "reply_count")
-  private Integer replyCount;
-
   // name으로 저장
   @ManyToOne
   @JoinColumn(name = "member_id", referencedColumnName = "id")

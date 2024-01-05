@@ -2,8 +2,8 @@ package com.hv.community.backend.controller;
 
 
 import com.hv.community.backend.dto.TokenDto;
-import com.hv.community.backend.dto.member.ActivateEmailRequestDto;
-import com.hv.community.backend.dto.member.SendEmailVerificationCodeRequestDto;
+import com.hv.community.backend.dto.member.EmailActivateRequestDto;
+import com.hv.community.backend.dto.member.EmailSendRequestDto;
 import com.hv.community.backend.dto.member.SigninRequestDto;
 import com.hv.community.backend.dto.member.SigninRequestDtoValidator;
 import com.hv.community.backend.dto.member.SignupRequestDto;
@@ -46,37 +46,36 @@ public class MemberController {
     this.mailService = mailService;
   }
 
-  // POST signup
+  // POST /v1/signup
   // 회원가입 로직
   // email, nickname, password
   // token반환 및 verificationCode(6자리 숫자)메일로 발송
 
-  // POST sendEmailVerificationCode
+  // POST /v1/email/send
   // 이메일 재발송 로직
   // token
   // verificationCode(6자리 숫자)메일로 발송
 
-  // POST activateEmail
+  // POST /v1/email/activate
   // 이메일 활성화 로직
   // token, verificationCode
 
-  // POST signin
+  // POST /v1/signin
   // 로그인
   // email, password
   // accessToken, refreshToken 반환
 
-  // GET refreshAccessToken
-  // accessToken 재생성로직
+  // GET /v1/refresh
+  // accessToken 재생성 로직
   // refreshToken
-  // accessToken 반환
+  // accessToken return
 
-  // GET getMyProfile
-  // email, name fetch
+  // GET /v1/profile
   // accessToken
   // email, name return
 
 
-  // POST signup
+  // POST /v1/signup
   // 회원가입 로직
   // email, nickname, password
   // token반환 및 verificationCode(6자리 숫자)메일로 발송
@@ -91,14 +90,14 @@ public class MemberController {
     return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(data);
   }
 
-  // POST sendEmailVerificationCode
+  // POST /v1/email/send
   // 이메일 재발송 로직
   // token
   // verificationCode(6자리 숫자)메일로 발송
-  @PostMapping("/v1/send-email-verification-code")
-  public ResponseEntity sendEmailVerificationCodeV1(@RequestBody
-  SendEmailVerificationCodeRequestDto sendEmailVerificationCodeRequestDto) {
-    String token = sendEmailVerificationCodeRequestDto.getToken();
+  @PostMapping("/v1/email/send")
+  public ResponseEntity emailSendV1(@RequestBody
+  EmailSendRequestDto emailSendRequestDto) {
+    String token = emailSendRequestDto.getToken();
 
     Map<String, String> data = memberService.getEmailVerificationCodeV1(token);
     String email = data.keySet().iterator().next();
@@ -108,17 +107,17 @@ public class MemberController {
     return ResponseEntity.ok(new HashMap<>());
   }
 
-  // POST activateEmail
+  // POST /v1/email/activate
   // 이메일 활성화 로직
   // token, verificationCode
-  @PostMapping("/v1/activate-email")
-  public ResponseEntity activateEmailV1(
-      @RequestBody ActivateEmailRequestDto activateEmailRequestDto) {
-    memberService.activateEmailV1(activateEmailRequestDto);
+  @PostMapping("/v1/email/activate")
+  public ResponseEntity emailActivateV1(
+      @RequestBody EmailActivateRequestDto emailActivateRequestDto) {
+    memberService.emailActivateV1(emailActivateRequestDto);
     return ResponseEntity.ok(new HashMap<>());
   }
 
-  // POST signin
+  // POST /v1/signin
   // 로그인
   // email, password
   // accessToken, refreshToken 반환
@@ -135,12 +134,12 @@ public class MemberController {
     return ResponseEntity.ok(data);
   }
 
-  // GET refreshAccessToken
-  // accessToken 재생성로직
+  // GET /v1/refresh
+  // accessToken 재생성 로직
   // refreshToken
-  // accessToken 반환
-  @GetMapping("/v1/refresh-access-token")
-  public ResponseEntity refreshAccessTokenV1(HttpServletRequest request) {
+  // accessToken return
+  @GetMapping("/v1/refresh")
+  public ResponseEntity refreshV1(HttpServletRequest request) {
     // refresh token 유효성 검사
     if (request.getHeader("Authorization") != null) {
       String refreshToken = request.getHeader("Authorization").substring(7);
@@ -158,17 +157,16 @@ public class MemberController {
     }
   }
 
-  // GET getMyProfile
-  // email, name fetch
+  // GET /v1/profile
   // accessToken
   // email, name return
-  @GetMapping("/v1/get-my-profile")
-  public ResponseEntity getMyProfileV1(@AuthenticationPrincipal User user) {
+  @GetMapping("/v1/profile")
+  public ResponseEntity profileV1(@AuthenticationPrincipal User user) {
     // accesstoken검사
     handleAuthorizationError(user);
     String email = getEmail(user);
 
-    Map<String, String> data = memberService.getMyProfileV1(email);
+    Map<String, String> data = memberService.profileV1(email);
     return ResponseEntity.ok(data);
   }
 

@@ -11,28 +11,28 @@ import org.springframework.data.domain.Page;
 @Getter
 @Setter
 @Builder
-public class GetPostListResponseDto {
+public class PostListResponseDto {
 
   private final int page;
   private final int pageSize;
   private final int prev;
   private final int next;
-  private final List<PostDto> posts;
+  private final List<PostDto> items;
 
-  public GetPostListResponseDto(int page, int pageSize, int prev, int next, List<PostDto> posts) {
+  public PostListResponseDto(int page, int pageSize, int prev, int next, List<PostDto> items) {
     this.page = page;
     this.pageSize = pageSize;
     this.prev = prev;
     this.next = next;
-    this.posts = posts;
+    this.items = items;
   }
 
-  public static GetPostListResponseDto of(Page<Post> postPage, int pageSize) {
+  public static PostListResponseDto of(Page<Post> postPage, int pageSize) {
     List<PostDto> postListResponseDtos = postPage.stream()
         .map(PostDto::of)
         .collect(Collectors.toList());
 
-    return new GetPostListResponseDto(
+    return new PostListResponseDto(
         postPage.getNumber(),
         pageSize,
         postPage.getNumber() - 1,

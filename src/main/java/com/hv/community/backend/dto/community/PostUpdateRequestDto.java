@@ -5,9 +5,8 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class UpdatePostRequestDto {
+public class PostUpdateRequestDto {
 
-  private Long post_id;
   private String title;
   private String content;
   private String password;

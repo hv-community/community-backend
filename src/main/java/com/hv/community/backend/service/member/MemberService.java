@@ -233,15 +233,16 @@ public class MemberService {
     String token = emailActivateRequestDto.getToken();
     String verificationCode = emailActivateRequestDto.getVerification_code();
 
-    MemberTemp memberTemp = memberTempRepository.findByCode(verificationCode)
+    Member member = memberRepository.findByToken(token)
         .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
     try {
-      if (Objects.equals(token, memberTemp.getMember().getToken())) {
-        Member member = memberTemp.getMember();
+      if (Objects.equals(verificationCode, member.getMemberTemp().getCode())) {
         member.setEmailActivated(1);
         member.setToken(null);
         memberRepository.save(member);
-        memberTempRepository.delete(memberTemp);
+        memberTempRepository.delete(member.getMemberTemp());
+      } else {
+        throw new MemberException("MEMBER:ACTIVATE_EMAIL_FAIL");
       }
     } catch (Exception e) {
       throw new MemberException("MEMBER:ACTIVATE_EMAIL_FAIL");

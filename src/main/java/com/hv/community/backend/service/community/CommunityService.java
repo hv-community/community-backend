@@ -203,9 +203,22 @@ public class CommunityService {
       // 초과 에러 리턴
       throw new CommunityException("COMMUNITY:PAGE_INVALID");
     }
+    Long previousPostId = null;
+    Long nextPostId = null;
+    Post previousPost = postRepository.findTopByCommunityIdAndIdLessThanOrderByIdDesc(
+        post.getCommunity().getId(), postId).orElse(null);
+    if (previousPost != null) {
+      previousPostId = previousPost.getId();
+    }
+    Post nextPost = postRepository.findTopByCommunityIdAndIdGreaterThanOrderByIdAsc(
+        post.getCommunity().getId(), postId).orElse(null);
+    if (nextPost != null) {
+      nextPostId = nextPost.getId();
+    }
+
     try {
       List<ReplyDto> replyDtoList = replyPage.stream().map(ReplyDto::of).toList();
-      return PostDetailResponseDto.of(post,
+      return PostDetailResponseDto.of(post, previousPostId, nextPostId,
           replyDtoList,
           replyPage.getNumber(),
           replyPage.getTotalPages(),

@@ -21,7 +21,7 @@ public class ReplyDto {
   public static ReplyDto of(Reply reply) {
     return ReplyDto.builder()
         .id(reply.getId())
-        .reply(reply.getReply())
+        .reply(reply.getContent())
         .nickname(reply.getNickname())
         .creationTime(reply.getCreationTime())
         .modificationTime(reply.getModificationTime())

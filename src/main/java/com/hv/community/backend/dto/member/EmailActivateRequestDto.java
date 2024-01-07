@@ -8,5 +8,5 @@ import lombok.Setter;
 public class EmailActivateRequestDto {
 
   private String token;
-  private String verification_code;
+  private String verificationCode;
 }

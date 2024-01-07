@@ -1,10 +1,12 @@
 package com.hv.community.backend.dto.community;
 
 import com.hv.community.backend.domain.community.Post;
+import com.hv.community.backend.domain.community.Reply;
 import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.data.domain.Page;
 
 @Getter
 @Setter
@@ -14,10 +16,10 @@ public class PostDetailResponseDto {
   private Long id;
   private String title;
   private String nickname;
-  private Long member_id;
+  private Long memberId;
   private String content;
-  private Long previous_id;
-  private Long next_id;
+  private Long previousId;
+  private Long nextId;
   private List<ReplyDto> replies;
   private int currentPage;
   private int totalPages;
@@ -25,24 +27,22 @@ public class PostDetailResponseDto {
   private Integer next;
 
   public static PostDetailResponseDto of(Post post, Long previousPostId, Long nextPostId,
-      List<ReplyDto> replyDtoList,
-      int currentPage, int totalPages,
-      boolean hasPrevious, boolean hasNext) {
+      List<ReplyDto> replyDtoList, Page<Reply> replyPage) {
     Long memberId = (post.getMember() != null) ? post.getMember().getId() : null;
 
-    Integer prev = (!hasPrevious) ? null : currentPage;
-    Integer next = (!hasNext) ? null : currentPage + 2;
+    Integer prev = (!replyPage.hasPrevious()) ? null : replyPage.getNumber();
+    Integer next = (!replyPage.hasNext()) ? null : replyPage.getNumber() + 2;
     return PostDetailResponseDto.builder()
         .id(post.getId())
         .title(post.getTitle())
         .nickname(post.getNickname())
-        .member_id(memberId)
+        .memberId(memberId)
         .content(post.getContent())
-        .previous_id(previousPostId)
-        .next_id(nextPostId)
+        .previousId(previousPostId)
+        .nextId(nextPostId)
         .replies(replyDtoList)
-        .currentPage(currentPage + 1)
-        .totalPages(totalPages)
+        .currentPage(replyPage.getNumber() + 1)
+        .totalPages(replyPage.getTotalPages())
         .prev(prev)
         .next(next)
         .build();

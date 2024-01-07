@@ -14,17 +14,5 @@ public class WebConfig implements WebMvcConfigurer {
         .allowedMethods("GET", "POST", "PUT", "DELETE")
         .allowedHeaders("*")
         .allowCredentials(true);
-
-    registry.addMapping("/auth/*")
-        .allowedOrigins("http://localhost:3080")
-        .allowCredentials(false);
-
-    registry.addMapping("/member/*")
-        .allowedOrigins("http://localhost:3080")
-        .allowCredentials(false);
-
-    registry.addMapping("/community/*")
-        .allowedOrigins("http://localhost:3080")
-        .allowCredentials(false);
   }
 }

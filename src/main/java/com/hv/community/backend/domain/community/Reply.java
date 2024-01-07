@@ -26,8 +26,8 @@ public class Reply {
   @Column(name = "id")
   private Long id;
 
-  @Column(name = "reply")
-  private String reply;
+  @Column(name = "content")
+  private String content;
 
   @Temporal(TemporalType.TIMESTAMP)
   @Column(name = "creation_time")

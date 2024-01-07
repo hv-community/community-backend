@@ -44,7 +44,7 @@ public class SecurityConfig {
   // 필터를 거치지 않고 html, js, css 파일 접근 허용
   @Bean
   public WebSecurityCustomizer configure() {
-    return (web) -> web.ignoring().requestMatchers("/static/**");
+    return web -> web.ignoring().requestMatchers("/static/**");
   }
 
   // http 웹 기반 보안 구성

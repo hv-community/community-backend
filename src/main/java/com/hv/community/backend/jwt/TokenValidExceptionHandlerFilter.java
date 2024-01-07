@@ -10,19 +10,16 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-
+@Slf4j
 @Component
 public class TokenValidExceptionHandlerFilter extends OncePerRequestFilter {
-
-  private final Logger logger = LoggerFactory.getLogger(TokenValidExceptionHandlerFilter.class);
 
   private final ObjectMapper objectMapper;
 
@@ -41,12 +38,12 @@ public class TokenValidExceptionHandlerFilter extends OncePerRequestFilter {
     }
     // 만료된 토큰
     catch (ExpiredJwtException expiredJwtException) {
-      logger.debug("ExpiredJwtException 예외 발생");
+      log.debug("ExpiredJwtException 예외 발생");
       tokenException("TOKEN:TOKEN_EXPIRED", "만료된 JWT 토큰입니다", request, response);
     }
     // 잘못된 토큰
     catch (InvalidAccessTokenException invalidAccessTokenException) {
-      logger.debug("InvalidAccessTokenException 예외 발생");
+      log.debug("InvalidAccessTokenException 예외 발생");
       tokenException("TOKEN:TOKEN_INVALID", "잘못된 JWT 토큰입니다", request, response);
     }
   }

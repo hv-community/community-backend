@@ -16,11 +16,9 @@ public class MailException extends RuntimeException {
   }
 
   public ErrorResponseDto handleMailException() {
-    switch (this.id) {
-      case "MAIL:SEND_MAIL_FAIL":
-        return ErrorResponseDto.of(id, "메일 발송중 오류가 발생했습니다");
-      default:
-        return ErrorResponseDto.of("UNKNOWN", "알 수 없는 오류");
+    if (this.id.equals("MAIL:SEND_MAIL_FAIL")) {
+      return ErrorResponseDto.of(id, "메일 발송중 오류가 발생했습니다");
     }
+    return ErrorResponseDto.of("UNKNOWN", "알 수 없는 오류");
   }
 }

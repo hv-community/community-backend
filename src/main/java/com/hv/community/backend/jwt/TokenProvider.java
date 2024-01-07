@@ -16,8 +16,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -28,23 +27,22 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-
+@Slf4j
 @Component
 public class TokenProvider implements InitializingBean {
 
-  private final Logger logger = LoggerFactory.getLogger(getClass());
   private static final String AUTHORITIES_KEY = "auth";
   private final String secret;
-  private final long ACCESS_TOKEN_EXPIRE_TIME;
-  private final long REFRESH_TOKEN_EXPIRE_TIME;
+  private final long accessTokenExpireTime;
+  private final long refreshTokenExpireTime;
   private Key key;
 
   public TokenProvider(@Value("${jwt.secret}") String secret,
       @Value("${jwt.access-token-expire-time}") long accessTokenExpireTime,
       @Value("${jwt.refresh-token-expire-time}") long refreshTokenExpireTime) {
     this.secret = secret;
-    this.ACCESS_TOKEN_EXPIRE_TIME = accessTokenExpireTime;
-    this.REFRESH_TOKEN_EXPIRE_TIME = refreshTokenExpireTime;
+    this.accessTokenExpireTime = accessTokenExpireTime;
+    this.refreshTokenExpireTime = refreshTokenExpireTime;
   }
 
   @Override
@@ -60,7 +58,7 @@ public class TokenProvider implements InitializingBean {
         .map(GrantedAuthority::getAuthority)
         .collect(Collectors.joining(","));
     long now = (new Date()).getTime();
-    Date accessTokenExpiresIn = new Date(now + ACCESS_TOKEN_EXPIRE_TIME);
+    Date accessTokenExpiresIn = new Date(now + accessTokenExpireTime);
     // Create Access Token
     String accessToken = Jwts.builder()
         .signWith(key, SignatureAlgorithm.HS512)        // header  "alg": "HS512"
@@ -70,7 +68,7 @@ public class TokenProvider implements InitializingBean {
         .compact();
 
     // Create Refresh Token
-    Date refreshTokenExpiresIn = new Date(now + REFRESH_TOKEN_EXPIRE_TIME);
+    Date refreshTokenExpiresIn = new Date(now + refreshTokenExpireTime);
     String refreshToken = Jwts.builder()
         .signWith(key, SignatureAlgorithm.HS512)
         .setSubject(authentication.getName())
@@ -85,17 +83,15 @@ public class TokenProvider implements InitializingBean {
   }
 
   public String refreshAccessToken(String refreshToken) {
-    Claims refreshClaims = parseClaims(refreshToken);
     Authentication authentication = getAuthentication(refreshToken);
-    String newAccessToken = createToken(authentication).getAccessToken();
-    return newAccessToken;
+    return createToken(authentication).getAccessToken();
   }
 
   // accessToken 정보 반환
   public Authentication getAuthentication(String accessToken) {
     // 토큰 복호화
     Claims claims = parseClaims(accessToken);
-    logger.debug(String.valueOf(claims));
+    log.debug(String.valueOf(claims));
     if (claims.get(AUTHORITIES_KEY) == null) {
       throw new MemberException("MEMBER:GET_AUTHENTICATION_FAIL");
     }
@@ -104,7 +100,7 @@ public class TokenProvider implements InitializingBean {
     Collection<? extends GrantedAuthority> authorities = Arrays.stream(
             claims.get(AUTHORITIES_KEY).toString().split(","))
         .map(SimpleGrantedAuthority::new)
-        .collect(Collectors.toList());
+        .toList();
     // UserDetails 첨부한 Authentication(인증 정보) 반환
     UserDetails principal = new User(claims.getSubject(), "", authorities);
     return new UsernamePasswordAuthenticationToken(principal, accessToken, authorities);
@@ -128,16 +124,16 @@ public class TokenProvider implements InitializingBean {
       Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
       return true;
     } catch (io.jsonwebtoken.security.SecurityException | MalformedJwtException e) {
-      logger.info("잘못된 JWT 서명입니다.");
+      log.info("잘못된 JWT 서명입니다.");
       throw new InvalidAccessTokenException();
     } catch (ExpiredJwtException expiredJwtException) {
-      logger.info("만료된 JWT 토큰입니다.");
+      log.info("만료된 JWT 토큰입니다.");
       throw expiredJwtException;
     } catch (UnsupportedJwtException e) {
-      logger.info("미지원 JWT 토큰입니다.");
+      log.info("미지원 JWT 토큰입니다.");
       throw new InvalidAccessTokenException();
     } catch (IllegalArgumentException e) {
-      logger.info("잘못된 JWT 토큰입니다.");
+      log.info("잘못된 JWT 토큰입니다.");
       throw new InvalidAccessTokenException();
     }
   }

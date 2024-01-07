@@ -2,7 +2,6 @@ package com.hv.community.backend.dto.community;
 
 import com.hv.community.backend.domain.community.Post;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -30,7 +29,7 @@ public class PostListResponseDto {
   public static PostListResponseDto of(Page<Post> postPage, int pageSize) {
     List<PostDto> postListResponseDtos = postPage.stream()
         .map(PostDto::of)
-        .collect(Collectors.toList());
+        .toList();
 
     return new PostListResponseDto(
         postPage.getNumber(),

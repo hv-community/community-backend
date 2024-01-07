@@ -8,6 +8,8 @@ import com.hv.community.backend.dto.community.ReplyCreateRequestDto;
 import com.hv.community.backend.dto.community.ReplyUpdateRequestDto;
 import com.hv.community.backend.exception.CommunityException;
 import com.hv.community.backend.service.community.CommunityService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
@@ -70,6 +72,7 @@ public class CommunityController {
   }
 
   @PostMapping("/v1/{community_id}/create")
+  @Operation(security = {@SecurityRequirement(name = "bearer-key")})
   public ResponseEntity<Map<String, Object>> postCreateV1(@AuthenticationPrincipal User user,
       @PathVariable("community_id") Long communityId,
       @RequestBody PostCreateRequestDto postCreateRequestDto) {
@@ -100,6 +103,7 @@ public class CommunityController {
   }
 
   @PostMapping("/v1/{community_id}/{post_id}/update")
+  @Operation(security = {@SecurityRequirement(name = "bearer-key")})
   public ResponseEntity<Map<String, Object>> postUpdateV1(@AuthenticationPrincipal User user,
       @PathVariable("community_id") Long communityId, @PathVariable("post_id") Long postId,
       @RequestBody PostUpdateRequestDto postUpdateRequestDto) {
@@ -114,6 +118,7 @@ public class CommunityController {
   }
 
   @DeleteMapping("/v1/{community_id}/{post_id}/delete")
+  @Operation(security = {@SecurityRequirement(name = "bearer-key")})
   public ResponseEntity<Map<String, Object>> postDeleteV1(@AuthenticationPrincipal User user,
       @PathVariable("community_id") Long communityId, @PathVariable("post_id") Long postId,
       @RequestParam String password) {
@@ -124,6 +129,7 @@ public class CommunityController {
   }
 
   @PostMapping("/v1/{community_id}/{post_id}/create")
+  @Operation(security = {@SecurityRequirement(name = "bearer-key")})
   public ResponseEntity<Map<String, Object>> replyCreateV1(@AuthenticationPrincipal User user,
       @PathVariable("community_id") Long communityId, @PathVariable("post_id") Long postId,
       @RequestBody ReplyCreateRequestDto replyCreateRequestDto) {
@@ -154,6 +160,7 @@ public class CommunityController {
   }
 
   @PostMapping("/v1/{community_id}/{post_id}/{reply_id}/update")
+  @Operation(security = {@SecurityRequirement(name = "bearer-key")})
   public ResponseEntity<Map<String, Object>> replyUpdateV1(@AuthenticationPrincipal User user,
       @PathVariable("community_id") Long communityId, @PathVariable("post_id") Long postId,
       @PathVariable("reply_id") Long replyId,
@@ -168,6 +175,7 @@ public class CommunityController {
   }
 
   @DeleteMapping("/v1/{community_id}/{post_id}/{reply_id}/delete")
+  @Operation(security = {@SecurityRequirement(name = "bearer-key")})
   public ResponseEntity<Map<String, Object>> replyDeleteV1(@AuthenticationPrincipal User user,
       @PathVariable("community_id") Long communityId,
       @PathVariable("post_id") Long postId, @PathVariable("reply_id") Long replyId,

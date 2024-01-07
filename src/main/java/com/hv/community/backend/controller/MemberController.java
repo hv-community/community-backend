@@ -12,6 +12,8 @@ import com.hv.community.backend.exception.MemberException;
 import com.hv.community.backend.jwt.TokenProvider;
 import com.hv.community.backend.service.mail.MailService;
 import com.hv.community.backend.service.member.MemberService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
@@ -87,6 +89,7 @@ public class MemberController {
   }
 
   @GetMapping("/v1/refresh")
+  @Operation(security = {@SecurityRequirement(name = "bearer-key")})
   public ResponseEntity<Map<String, String>> refreshV1(HttpServletRequest request) {
     // refresh token 유효성 검사
     if (request.getHeader("Authorization") != null) {
@@ -106,6 +109,7 @@ public class MemberController {
   }
 
   @GetMapping("/v1/profile")
+  @Operation(security = {@SecurityRequirement(name = "bearer-key")})
   public ResponseEntity<Map<String, String>> profileV1(@AuthenticationPrincipal User user) {
     // accesstoken검사
     handleAuthorizationError(user);

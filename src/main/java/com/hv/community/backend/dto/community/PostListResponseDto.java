@@ -1,5 +1,7 @@
 package com.hv.community.backend.dto.community;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.hv.community.backend.domain.community.Post;
 import java.util.List;
 import lombok.Builder;
@@ -10,6 +12,7 @@ import org.springframework.data.domain.Page;
 @Getter
 @Setter
 @Builder
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class PostListResponseDto {
 
   private final int page;

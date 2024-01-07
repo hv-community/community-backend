@@ -7,6 +7,6 @@ import lombok.Setter;
 @Setter
 public class ReplyUpdateRequestDto {
 
-  private String reply;
+  private String content;
   private String password;
 }

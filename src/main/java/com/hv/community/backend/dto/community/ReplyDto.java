@@ -1,5 +1,7 @@
 package com.hv.community.backend.dto.community;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.hv.community.backend.domain.community.Reply;
 import java.util.Date;
 import lombok.Builder;
@@ -9,10 +11,11 @@ import lombok.Setter;
 @Getter
 @Setter
 @Builder
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class ReplyDto {
 
   private Long id;
-  private String reply;
+  private String content;
   private String nickname;
   private Date creationTime;
   private Date modificationTime;
@@ -21,7 +24,7 @@ public class ReplyDto {
   public static ReplyDto of(Reply reply) {
     return ReplyDto.builder()
         .id(reply.getId())
-        .reply(reply.getContent())
+        .content(reply.getContent())
         .nickname(reply.getNickname())
         .creationTime(reply.getCreationTime())
         .modificationTime(reply.getModificationTime())

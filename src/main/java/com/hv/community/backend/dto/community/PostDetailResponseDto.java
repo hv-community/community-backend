@@ -1,16 +1,17 @@
 package com.hv.community.backend.dto.community;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.hv.community.backend.domain.community.Post;
-import com.hv.community.backend.domain.community.Reply;
-import java.util.List;
+import java.util.Date;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.data.domain.Page;
 
 @Getter
 @Setter
 @Builder
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class PostDetailResponseDto {
 
   private Long id;
@@ -20,18 +21,12 @@ public class PostDetailResponseDto {
   private String content;
   private Long previousId;
   private Long nextId;
-  private List<ReplyDto> replies;
-  private int currentPage;
-  private int totalPages;
-  private Integer prev;
-  private Integer next;
+  private final Date creationTime;
+  private final Date modificationTime;
 
-  public static PostDetailResponseDto of(Post post, Long previousPostId, Long nextPostId,
-      List<ReplyDto> replyDtoList, Page<Reply> replyPage) {
+  public static PostDetailResponseDto of(Post post, Long previousPostId, Long nextPostId) {
     Long memberId = (post.getMember() != null) ? post.getMember().getId() : null;
 
-    Integer prev = (!replyPage.hasPrevious()) ? null : replyPage.getNumber();
-    Integer next = (!replyPage.hasNext()) ? null : replyPage.getNumber() + 2;
     return PostDetailResponseDto.builder()
         .id(post.getId())
         .title(post.getTitle())
@@ -40,11 +35,8 @@ public class PostDetailResponseDto {
         .content(post.getContent())
         .previousId(previousPostId)
         .nextId(nextPostId)
-        .replies(replyDtoList)
-        .currentPage(replyPage.getNumber() + 1)
-        .totalPages(replyPage.getTotalPages())
-        .prev(prev)
-        .next(next)
+        .creationTime(post.getCreationTime())
+        .modificationTime(post.getModificationTime())
         .build();
   }
 }

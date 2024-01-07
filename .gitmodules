@@ -1,0 +1,3 @@
+[submodule "community-backend-submodule-config"]
+	path = community-backend-submodule-config
+	url = https://github.com/GOOMBANGEE/community-backend-submodule-config.git

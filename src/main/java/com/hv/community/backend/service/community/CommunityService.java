@@ -8,6 +8,7 @@ import com.hv.community.backend.dto.community.CommunityListResponseDto;
 import com.hv.community.backend.dto.community.PostCreateRequestDto;
 import com.hv.community.backend.dto.community.PostDetailResponseDto;
 import com.hv.community.backend.dto.community.PostDto;
+import com.hv.community.backend.dto.community.PostReplyResponseDto;
 import com.hv.community.backend.dto.community.PostUpdateRequestDto;
 import com.hv.community.backend.dto.community.ReplyCreateRequestDto;
 import com.hv.community.backend.dto.community.ReplyDto;
@@ -59,24 +60,27 @@ public class CommunityService {
     this.passwordEncoder = passwordEncoder;
   }
 
-  public Map<String, Object> communityListV1(Integer page, Integer pageSize) {
+
+  private void validatePage(Integer page, Integer pageSize, Page<?> pageList) {
     if (page == null || page < 1 || pageSize == null || pageSize < 1) {
       // 1보다 작거나 없는 경우 에러 리턴
-      throw new CommunityException(postInvalid);
+      throw new CommunityException(pageInvalid);
     }
+    if ((page - 1 > pageList.getTotalPages() && !pageList.isEmpty())
+        || (page > 1 && pageList.isEmpty())) {
+      // 초과 에러 리턴
+      throw new CommunityException(pageInvalid);
+    }
+  }
 
+  public Map<String, Object> communityListV1(Integer page, Integer pageSize) {
     Pageable pageable = PageRequest.of(page - 1, pageSize);
     Page<Community> communityList = communityRepository.findAll(pageable);
     List<CommunityListResponseDto> communityListResponseDtos = communityList.stream()
         .map(CommunityListResponseDto::of).toList();
     Map<String, Object> responseData = new HashMap<>();
 
-    if ((page - 1 > communityList.getTotalPages() && !communityList.isEmpty())
-        || (page > 1 && communityList.isEmpty())) {
-      // 초과 에러 리턴
-      throw new CommunityException(pageInvalid);
-    }
-
+    validatePage(page, pageSize, communityList);
     try {
       int currentPage = communityList.getNumber();
       Integer prev = (!communityList.hasPrevious()) ? null : currentPage;
@@ -96,20 +100,13 @@ public class CommunityService {
   }
 
   public Map<String, Object> postListV1(Long communityId, Integer page, Integer pageSize) {
-    if (page == null || page < 1 || pageSize == null || pageSize < 1) {
-      // 1보다 작거나 없는 경우 에러 리턴
-      throw new CommunityException(pageInvalid);
-    }
     Community community = communityRepository.findById(communityId)
         .orElseThrow(() -> new CommunityException("COMMUNITY:COMMUNITY_INVALID"));
-
     Pageable pageable = PageRequest.of(page - 1, pageSize);
     Page<Post> postPage = postRepository.findByCommunity(community, pageable);
-    if ((page - 1 > postPage.getTotalPages() && !postPage.isEmpty())
-        || (page > 1 && postPage.isEmpty())) {
-      // 초과 에러 리턴
-      throw new CommunityException(pageInvalid);
-    }
+
+    validatePage(page, pageSize, postPage);
+
     try {
       List<PostDto> postDtos = postPage.stream()
           .map(PostDto::of).toList();
@@ -132,22 +129,9 @@ public class CommunityService {
     }
   }
 
-  public PostDetailResponseDto postDetailV1(Long postId, Integer page, Integer pageSize) {
-    if (page == null || page < 1 || pageSize == null || pageSize < 1) {
-      // 1보다 작거나 없는 경우 에러 리턴
-      throw new CommunityException(pageInvalid);
-    }
-
+  public PostDetailResponseDto postDetailV1(Long postId) {
     Post post = postRepository.findById(postId)
         .orElseThrow(() -> new CommunityException(postInvalid));
-    Pageable pageable = PageRequest.of(page - 1, pageSize);
-    Page<Reply> replyPage = replyRepository.findByPost(post, pageable);
-
-    if ((page - 1 > replyPage.getTotalPages() && !replyPage.isEmpty())
-        || (page > 1 && replyPage.isEmpty())) {
-      // 초과 에러 리턴
-      throw new CommunityException(pageInvalid);
-    }
     Long previousPostId = null;
     Long nextPostId = null;
     Post previousPost = postRepository.findTopByCommunityIdAndIdLessThanOrderByIdDesc(
@@ -162,11 +146,22 @@ public class CommunityService {
     }
 
     try {
-      List<ReplyDto> replyDtoList = replyPage.stream().map(ReplyDto::of).toList();
-      return PostDetailResponseDto.of(post, previousPostId, nextPostId, replyDtoList, replyPage);
+      return PostDetailResponseDto.of(post, previousPostId, nextPostId);
     } catch (Exception e) {
       throw new CommunityException("COMMUNITY:GET_POST_DETAIL_FAIL");
     }
+  }
+
+  public PostReplyResponseDto postReplyV1(Long postId, Integer page, Integer pageSize) {
+    Post post = postRepository.findById(postId)
+        .orElseThrow(() -> new CommunityException(postInvalid));
+    Pageable pageable = PageRequest.of(page - 1, pageSize);
+    Page<Reply> replyPage = replyRepository.findByPost(post, pageable);
+
+    validatePage(page, pageSize, replyPage);
+    List<ReplyDto> replyDtoList = replyPage.stream().map(ReplyDto::of).toList();
+
+    return PostReplyResponseDto.of(replyDtoList, replyPage);
   }
 
   public Long postCreateV1(String email, Long communityId,
@@ -228,6 +223,7 @@ public class CommunityService {
           Date currentDate = calendar.getTime();
           post.setModificationTime(currentDate);
           postRepository.save(post);
+          return;
         } catch (Exception e) {
           throw new CommunityException("COMMUNITY:UPDATE_POST_FAIL");
         }
@@ -265,6 +261,7 @@ public class CommunityService {
       if (passwordEncoder.matches(password, post.getPassword())) {
         try {
           postRepository.delete(post);
+          return;
         } catch (Exception e) {
           throw new CommunityException("COMMUNITY:DELETE_POST_FAIL");
         }
@@ -289,7 +286,7 @@ public class CommunityService {
     Post post = postRepository.findById(postId)
         .orElseThrow(() -> new CommunityException(postInvalid));
     Reply reply = new Reply();
-    reply.setContent(replyCreateRequestDto.getReply());
+    reply.setContent(replyCreateRequestDto.getContent());
     if (email.isEmpty()) {
       reply.setNickname(replyCreateRequestDto.getNickname());
       reply.setPassword(passwordEncoder.encode(replyCreateRequestDto.getPassword()));
@@ -337,11 +334,12 @@ public class CommunityService {
       // 이메일없는 유저요청 + 등록된 유저가 쓴글이 아닐때 > 비밀번호 검사
       if (passwordEncoder.matches(replyUpdateRequestDto.getPassword(), reply.getPassword())) {
         try {
-          reply.setContent(replyUpdateRequestDto.getReply());
+          reply.setContent(replyUpdateRequestDto.getContent());
           Calendar calendar = Calendar.getInstance();
           Date currentDate = calendar.getTime();
           reply.setModificationTime(currentDate);
           replyRepository.save(reply);
+          return;
         } catch (Exception e) {
           throw new CommunityException("COMMUNITY:UPDATE_REPLY_FAIL");
         }
@@ -354,7 +352,7 @@ public class CommunityService {
       throw new CommunityException(permissionInvalid);
     } else {
       try {
-        reply.setContent(replyUpdateRequestDto.getReply());
+        reply.setContent(replyUpdateRequestDto.getContent());
         Calendar calendar = Calendar.getInstance();
         Date currentDate = calendar.getTime();
         reply.setModificationTime(currentDate);
@@ -379,6 +377,7 @@ public class CommunityService {
         try {
           replyRepository.delete(reply);
           postRepository.save(post);
+          return;
         } catch (Exception e) {
           throw new CommunityException("COMMUNITY:DELETE_REPLY_FAIL");
         }

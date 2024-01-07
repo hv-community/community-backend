@@ -2,6 +2,7 @@ package com.hv.community.backend.controller;
 
 import com.hv.community.backend.dto.community.PostCreateRequestDto;
 import com.hv.community.backend.dto.community.PostDetailResponseDto;
+import com.hv.community.backend.dto.community.PostReplyResponseDto;
 import com.hv.community.backend.dto.community.PostUpdateRequestDto;
 import com.hv.community.backend.dto.community.ReplyCreateRequestDto;
 import com.hv.community.backend.dto.community.ReplyUpdateRequestDto;
@@ -35,32 +36,43 @@ public class CommunityController {
   @GetMapping("/v1/list")
   public ResponseEntity<Map<String, Object>> communityListV1(
       @RequestParam(defaultValue = "1") int page,
-      @RequestParam(defaultValue = "10") int pageSize) {
+      @RequestParam(defaultValue = "10", name = "page_size") int pageSize) {
     Map<String, Object> communityList = communityService.communityListV1(page, pageSize);
     return ResponseEntity.ok(communityList);
   }
 
-  @GetMapping("/v1/{communityId}")
-  public ResponseEntity<Map<String, Object>> postListV1(@PathVariable Long communityId,
+  @GetMapping("/v1/{community_id}")
+  public ResponseEntity<Map<String, Object>> postListV1(
+      @PathVariable("community_id") Long communityId,
       @RequestParam(defaultValue = "1") int page,
-      @RequestParam(defaultValue = "10") int pageSize) {
+      @RequestParam(defaultValue = "10", name = "page_size") int pageSize) {
     Map<String, Object> postList = communityService.postListV1(communityId, page, pageSize);
     return ResponseEntity.ok(postList);
   }
 
-  @GetMapping("/v1/{communityId}/{postId}")
-  public ResponseEntity<PostDetailResponseDto> postDetailV1(@PathVariable Long communityId,
-      @PathVariable Long postId,
-      @RequestParam(defaultValue = "1") int page,
-      @RequestParam(defaultValue = "10") int pageSize) {
-    PostDetailResponseDto postDetail = communityService.postDetailV1(postId, page,
-        pageSize);
+  @GetMapping("/v1/{community_id}/{post_id}")
+  public ResponseEntity<PostDetailResponseDto> postDetailV1(
+      @PathVariable("community_id") Long communityId,
+      @PathVariable("post_id") Long postId) {
+    PostDetailResponseDto postDetail = communityService.postDetailV1(postId);
     return ResponseEntity.ok(postDetail);
   }
 
-  @PostMapping("/v1/{communityId}/create")
+  @GetMapping("/v1/{community_id}/{post_id}/reply")
+  public ResponseEntity<PostReplyResponseDto> postReplyV1(
+      @PathVariable("community_id") Long communityId,
+      @PathVariable("post_id") Long postId,
+      @RequestParam(defaultValue = "1") int page,
+      @RequestParam(defaultValue = "10", name = "page_size") int pageSize) {
+    PostReplyResponseDto postReply = communityService.postReplyV1(postId, page,
+        pageSize);
+    return ResponseEntity.ok(postReply);
+  }
+
+  @PostMapping("/v1/{community_id}/create")
   public ResponseEntity<Map<String, Object>> postCreateV1(@AuthenticationPrincipal User user,
-      @PathVariable Long communityId, @RequestBody PostCreateRequestDto postCreateRequestDto) {
+      @PathVariable("community_id") Long communityId,
+      @RequestBody PostCreateRequestDto postCreateRequestDto) {
     if (postCreateRequestDto.getTitle().trim().isEmpty() || postCreateRequestDto.getContent().trim()
         .isEmpty()) {
       throw new CommunityException("COMMUNITY:EMPTY_TITLE_OR_CONTENT");
@@ -73,9 +85,10 @@ public class CommunityController {
     return ResponseEntity.ok(response);
   }
 
-  @GetMapping("/v1/{communityId}/{postId}/check")
-  public ResponseEntity<Map<String, Object>> postCheckPasswordV1(@PathVariable Long communityId,
-      @PathVariable Long postId, @RequestParam String password) {
+  @GetMapping("/v1/{community_id}/{post_id}/check")
+  public ResponseEntity<Map<String, Object>> postCheckPasswordV1(
+      @PathVariable("community_id") Long communityId,
+      @PathVariable("post_id") Long postId, @RequestParam String password) {
     if (password.trim().isEmpty()) {
       throw new CommunityException(passwordInvalid);
     }
@@ -86,9 +99,9 @@ public class CommunityController {
     }
   }
 
-  @PostMapping("/v1/{communityId}/{postId}/update")
+  @PostMapping("/v1/{community_id}/{post_id}/update")
   public ResponseEntity<Map<String, Object>> postUpdateV1(@AuthenticationPrincipal User user,
-      @PathVariable Long communityId, @PathVariable Long postId,
+      @PathVariable("community_id") Long communityId, @PathVariable("post_id") Long postId,
       @RequestBody PostUpdateRequestDto postUpdateRequestDto) {
     if (postUpdateRequestDto.getTitle().trim().isEmpty() || postUpdateRequestDto.getContent().trim()
         .isEmpty()) {
@@ -100,9 +113,9 @@ public class CommunityController {
     return ResponseEntity.ok(new HashMap<>());
   }
 
-  @DeleteMapping("/v1/{communityId}/{postId}/delete")
+  @DeleteMapping("/v1/{community_id}/{post_id}/delete")
   public ResponseEntity<Map<String, Object>> postDeleteV1(@AuthenticationPrincipal User user,
-      @PathVariable Long communityId, @PathVariable Long postId,
+      @PathVariable("community_id") Long communityId, @PathVariable("post_id") Long postId,
       @RequestParam String password) {
     String email = getEmail(user);
 
@@ -110,11 +123,11 @@ public class CommunityController {
     return ResponseEntity.ok(new HashMap<>());
   }
 
-  @PostMapping("/v1/{communityId}/{postId}/create")
+  @PostMapping("/v1/{community_id}/{post_id}/create")
   public ResponseEntity<Map<String, Object>> replyCreateV1(@AuthenticationPrincipal User user,
-      @PathVariable Long communityId, @PathVariable Long postId,
+      @PathVariable("community_id") Long communityId, @PathVariable("post_id") Long postId,
       @RequestBody ReplyCreateRequestDto replyCreateRequestDto) {
-    if (replyCreateRequestDto.getReply().trim().isEmpty()) {
+    if (replyCreateRequestDto.getContent().trim().isEmpty()) {
       throw new CommunityException("COMMUNITY:EMPTY_REPLY");
     }
     String email = getEmail(user);
@@ -125,9 +138,11 @@ public class CommunityController {
     return ResponseEntity.ok(response);
   }
 
-  @GetMapping("/v1/{communityId}/{postId}/{replyId}/check")
-  public ResponseEntity<Map<String, Object>> replyCheckPasswordV1(@PathVariable Long communityId,
-      @PathVariable Long postId, @PathVariable Long replyId, @RequestParam String password) {
+  @GetMapping("/v1/{community_id}/{post_id}/{reply_id}/check")
+  public ResponseEntity<Map<String, Object>> replyCheckPasswordV1(
+      @PathVariable("community_id") Long communityId,
+      @PathVariable("post_id") Long postId, @PathVariable("reply_id") Long replyId,
+      @RequestParam String password) {
     if (password.trim().isEmpty()) {
       throw new CommunityException(passwordInvalid);
     }
@@ -138,11 +153,12 @@ public class CommunityController {
     }
   }
 
-  @PostMapping("/v1/{communityId}/{postId}/{replyId}/update")
+  @PostMapping("/v1/{community_id}/{post_id}/{reply_id}/update")
   public ResponseEntity<Map<String, Object>> replyUpdateV1(@AuthenticationPrincipal User user,
-      @PathVariable Long communityId, @PathVariable Long postId, @PathVariable Long replyId,
+      @PathVariable("community_id") Long communityId, @PathVariable("post_id") Long postId,
+      @PathVariable("reply_id") Long replyId,
       @RequestBody ReplyUpdateRequestDto replyUpdateRequestDto) {
-    if (replyUpdateRequestDto.getReply().trim().isEmpty()) {
+    if (replyUpdateRequestDto.getContent().trim().isEmpty()) {
       throw new CommunityException("COMMUNITY:EMPTY_REPLY");
     }
     String email = getEmail(user);
@@ -151,9 +167,10 @@ public class CommunityController {
     return ResponseEntity.ok(new HashMap<>());
   }
 
-  @DeleteMapping("/v1/{communityId}/{postId}/{replyId}/delete")
+  @DeleteMapping("/v1/{community_id}/{post_id}/{reply_id}/delete")
   public ResponseEntity<Map<String, Object>> replyDeleteV1(@AuthenticationPrincipal User user,
-      @PathVariable Long communityId, @PathVariable Long postId, @PathVariable Long replyId,
+      @PathVariable("community_id") Long communityId,
+      @PathVariable("post_id") Long postId, @PathVariable("reply_id") Long replyId,
       @RequestParam String password) {
     String email = getEmail(user);
 

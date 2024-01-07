@@ -43,6 +43,8 @@ dependencies {
     implementation 'io.sentry:sentry-logback:7.1.0'
     implementation 'io.sentry:sentry-spring:5.4.3'
 
+    // swagger
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.0.2'
 }
 
 task copyPrivate(type: Copy) {

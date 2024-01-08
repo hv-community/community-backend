@@ -10,5 +10,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ReplyRepository extends JpaRepository<Reply, Long> {
 
   Page<Reply> findPageByPost(Post post, Pageable pageable);
+
   List<Reply> findListByPost(Post post);
+
+  List<Reply> findListByPostIn(List<Post> postList);
 }

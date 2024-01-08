@@ -101,12 +101,16 @@ public class CommunityService {
     Pageable pageable = PageRequest.of(page - 1, pageSize);
     Page<Post> postPage = postRepository.findByCommunity(community, pageable);
     validatePage(page, postPage);
+    List<PostDto> postDtoList = postPage.stream()
+        .map(post -> {
+          List<Reply> replyList = replyRepository.findListByPostIn(List.of(post));
+          int replyCount = replyList.size();
+          return PostDto.of(post, replyCount);
+        })
+        .toList();
 
     try {
-      List<PostDto> postDtos = postPage.stream()
-          .map(PostDto::of).toList();
-
-      return PostListResponseDto.of(postDtos, postPage, pageSize);
+      return PostListResponseDto.of(postDtoList, postPage, pageSize);
 
     } catch (Exception e) {
       throw new CommunityException("COMMUNITY:POST_LIST_FAIL");

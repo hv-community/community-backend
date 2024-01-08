@@ -15,22 +15,27 @@ import org.springframework.data.domain.Page;
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class PostReplyResponseDto {
 
-  private List<ReplyDto> items;
-  private int currentPage;
-  private int totalPages;
-  private Integer prev;
   private Integer next;
+  private Integer prev;
+  private int totalPage;
+  private int page;
+  private List<ReplyDto> items;
+  private int pageSize;
 
-  public static PostReplyResponseDto of(List<ReplyDto> replyDtoList, Page<Reply> replyPage) {
-    Integer prev = (!replyPage.hasPrevious()) ? null : replyPage.getNumber();
-    Integer next = (!replyPage.hasNext()) ? null : replyPage.getNumber() + 2;
+  public static PostReplyResponseDto of(List<ReplyDto> replyDtoList, Page<Reply> replyPage,
+      int pageSize) {
+    int currentPage = replyPage.getNumber() + 1;
+
+    Integer prev = (!replyPage.hasPrevious()) ? null : currentPage - 1;
+    Integer next = (!replyPage.hasNext()) ? null : currentPage + 1;
 
     return PostReplyResponseDto.builder()
-        .items(replyDtoList)
-        .currentPage(replyPage.getNumber() + 1)
-        .totalPages(replyPage.getTotalPages())
-        .prev(prev)
         .next(next)
+        .prev(prev)
+        .totalPage(replyPage.getTotalPages())
+        .page(currentPage)
+        .items(replyDtoList)
+        .pageSize(pageSize)
         .build();
   }
 }

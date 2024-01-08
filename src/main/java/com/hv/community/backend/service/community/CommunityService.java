@@ -61,11 +61,15 @@ public class CommunityService {
   }
 
 
-  private void validatePage(Integer page, Integer pageSize, Page<?> pageList) {
+  private void validatePageInput(Integer page, Integer pageSize) {
     if (page == null || page < 1 || pageSize == null || pageSize < 1) {
       // 1보다 작거나 없는 경우 에러 리턴
       throw new CommunityException(pageInvalid);
     }
+
+  }
+
+  private void validatePage(Integer page, Page<?> pageList) {
     if ((page - 1 > pageList.getTotalPages() && !pageList.isEmpty())
         || (page > 1 && pageList.isEmpty())) {
       // 초과 에러 리턴
@@ -74,20 +78,21 @@ public class CommunityService {
   }
 
   public Map<String, Object> communityListV1(Integer page, Integer pageSize) {
+    validatePageInput(page, pageSize);
     Pageable pageable = PageRequest.of(page - 1, pageSize);
     Page<Community> communityList = communityRepository.findAll(pageable);
     List<CommunityListResponseDto> communityListResponseDtos = communityList.stream()
         .map(CommunityListResponseDto::of).toList();
     Map<String, Object> responseData = new HashMap<>();
 
-    validatePage(page, pageSize, communityList);
+    validatePage(page, communityList);
     try {
-      int currentPage = communityList.getNumber();
-      Integer prev = (!communityList.hasPrevious()) ? null : currentPage;
-      Integer next = (!communityList.hasNext()) ? null : currentPage + 2;
+      int currentPage = communityList.getNumber() + 1;
+      Integer prev = (!communityList.hasPrevious()) ? null : currentPage - 1;
+      Integer next = (!communityList.hasNext()) ? null : currentPage + 1;
 
       responseData.put("page", currentPage);
-      responseData.put("total_page", communityList.getTotalPages() + 1);
+      responseData.put("total_page", communityList.getTotalPages());
       responseData.put("page_size", pageSize);
       responseData.put("prev", prev);
       responseData.put("next", next);
@@ -95,26 +100,27 @@ public class CommunityService {
 
       return responseData;
     } catch (Exception e) {
-      throw new CommunityException("COMMUNITY:GET_COMMUNITY_LIST_FAIL");
+      throw new CommunityException("COMMUNITY:COMMUNITY_LIST_FAIL");
     }
   }
 
   public Map<String, Object> postListV1(Long communityId, Integer page, Integer pageSize) {
+    validatePageInput(page, pageSize);
     Community community = communityRepository.findById(communityId)
         .orElseThrow(() -> new CommunityException("COMMUNITY:COMMUNITY_INVALID"));
+
     Pageable pageable = PageRequest.of(page - 1, pageSize);
     Page<Post> postPage = postRepository.findByCommunity(community, pageable);
-
-    validatePage(page, pageSize, postPage);
+    validatePage(page, postPage);
 
     try {
       List<PostDto> postDtos = postPage.stream()
           .map(PostDto::of).toList();
       Map<String, Object> responseData = new HashMap<>();
 
-      int currentPage = postPage.getNumber();
-      Integer prev = (!postPage.hasPrevious()) ? null : currentPage;
-      Integer next = (!postPage.hasNext()) ? null : currentPage + 2;
+      int currentPage = postPage.getNumber() + 1;
+      Integer prev = (!postPage.hasPrevious()) ? null : currentPage - 1;
+      Integer next = (!postPage.hasNext()) ? null : currentPage + 1;
 
       responseData.put("page", currentPage);
       responseData.put("total_page", postPage.getTotalPages());
@@ -125,7 +131,7 @@ public class CommunityService {
 
       return responseData;
     } catch (Exception e) {
-      throw new CommunityException("COMMUNITY:GET_POST_LIST_FAIL");
+      throw new CommunityException("COMMUNITY:POST_LIST_FAIL");
     }
   }
 
@@ -148,20 +154,26 @@ public class CommunityService {
     try {
       return PostDetailResponseDto.of(post, previousPostId, nextPostId);
     } catch (Exception e) {
-      throw new CommunityException("COMMUNITY:GET_POST_DETAIL_FAIL");
+      throw new CommunityException("COMMUNITY:POST_DETAIL_FAIL");
     }
   }
 
   public PostReplyResponseDto postReplyV1(Long postId, Integer page, Integer pageSize) {
+    validatePageInput(page, pageSize);
     Post post = postRepository.findById(postId)
         .orElseThrow(() -> new CommunityException(postInvalid));
     Pageable pageable = PageRequest.of(page - 1, pageSize);
     Page<Reply> replyPage = replyRepository.findByPost(post, pageable);
 
-    validatePage(page, pageSize, replyPage);
-    List<ReplyDto> replyDtoList = replyPage.stream().map(ReplyDto::of).toList();
+    validatePage(page, replyPage);
+    try {
+      List<ReplyDto> replyDtoList = replyPage.stream().map(ReplyDto::of).toList();
 
-    return PostReplyResponseDto.of(replyDtoList, replyPage);
+      return PostReplyResponseDto.of(replyDtoList, replyPage, pageSize);
+    } catch (Exception e) {
+      throw new CommunityException("COMMUNITY:POST_REPLY_FAIL");
+    }
+
   }
 
   public Long postCreateV1(String email, Long communityId,
@@ -191,7 +203,7 @@ public class CommunityService {
       postRepository.save(post);
       return post.getId();
     } catch (Exception e) {
-      throw new CommunityException("COMMUNITY:CREATE_POST_FAIL");
+      throw new CommunityException("COMMUNITY:POST_CREATE_FAIL");
     }
   }
 
@@ -225,7 +237,7 @@ public class CommunityService {
           postRepository.save(post);
           return;
         } catch (Exception e) {
-          throw new CommunityException("COMMUNITY:UPDATE_POST_FAIL");
+          throw new CommunityException("COMMUNITY:POST_UPDATE_FAIL");
         }
       } else {
         throw new CommunityException(passwordInvalid);
@@ -244,7 +256,7 @@ public class CommunityService {
         post.setModificationTime(currentDate);
         postRepository.save(post);
       } catch (Exception e) {
-        throw new CommunityException("COMMUNITY:UPDATE_POST_FAIL");
+        throw new CommunityException("COMMUNITY:POST_UPDATE_FAIL");
       }
     }
   }
@@ -263,7 +275,7 @@ public class CommunityService {
           postRepository.delete(post);
           return;
         } catch (Exception e) {
-          throw new CommunityException("COMMUNITY:DELETE_POST_FAIL");
+          throw new CommunityException("COMMUNITY:POST_DELETE_FAIL");
         }
       } else {
         throw new CommunityException(passwordInvalid);
@@ -276,7 +288,7 @@ public class CommunityService {
       try {
         postRepository.delete(post);
       } catch (Exception e) {
-        throw new CommunityException("COMMUNITY:DELETE_POST_FAIL");
+        throw new CommunityException("COMMUNITY:POST_DELETE_FAIL");
       }
     }
   }
@@ -307,7 +319,7 @@ public class CommunityService {
       postRepository.save(post);
       return reply.getId();
     } catch (Exception e) {
-      throw new CommunityException("COMMUNITY:CREATE_REPLY_FAIL");
+      throw new CommunityException("COMMUNITY:REPLY_CREATE_FAIL");
     }
   }
 
@@ -341,7 +353,7 @@ public class CommunityService {
           replyRepository.save(reply);
           return;
         } catch (Exception e) {
-          throw new CommunityException("COMMUNITY:UPDATE_REPLY_FAIL");
+          throw new CommunityException("COMMUNITY:REPLY_UPDATE_FAIL");
         }
       } else {
         throw new CommunityException(passwordInvalid);
@@ -358,7 +370,7 @@ public class CommunityService {
         reply.setModificationTime(currentDate);
         replyRepository.save(reply);
       } catch (Exception e) {
-        throw new CommunityException("COMMUNITY:UPDATE_REPLY_FAIL");
+        throw new CommunityException("COMMUNITY:REPLY_UPDATE_FAIL");
       }
     }
   }
@@ -379,7 +391,7 @@ public class CommunityService {
           postRepository.save(post);
           return;
         } catch (Exception e) {
-          throw new CommunityException("COMMUNITY:DELETE_REPLY_FAIL");
+          throw new CommunityException("COMMUNITY:REPLY_DELETE_FAIL");
         }
       } else {
         throw new CommunityException(passwordInvalid);
@@ -393,7 +405,7 @@ public class CommunityService {
         replyRepository.delete(reply);
         postRepository.save(post);
       } catch (Exception e) {
-        throw new CommunityException("COMMUNITY:DELETE_REPLY_FAIL");
+        throw new CommunityException("COMMUNITY:REPLY_DELETE_FAIL");
       }
     }
   }

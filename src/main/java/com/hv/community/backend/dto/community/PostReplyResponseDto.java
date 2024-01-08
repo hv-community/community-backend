@@ -19,8 +19,9 @@ public class PostReplyResponseDto {
   private Integer prev;
   private int totalPage;
   private int page;
-  private List<ReplyDto> items;
   private int pageSize;
+  private List<ReplyDto> items;
+
 
   public static PostReplyResponseDto of(List<ReplyDto> replyDtoList, Page<Reply> replyPage,
       int pageSize) {
@@ -34,8 +35,8 @@ public class PostReplyResponseDto {
         .prev(prev)
         .totalPage(replyPage.getTotalPages())
         .page(currentPage)
-        .items(replyDtoList)
         .pageSize(pageSize)
+        .items(replyDtoList)
         .build();
   }
 }

@@ -19,12 +19,14 @@ public class PostDetailResponseDto {
   private String nickname;
   private Long memberId;
   private String content;
+  private int replyCount;
   private Long previousId;
   private Long nextId;
   private final Date creationTime;
   private final Date modificationTime;
 
-  public static PostDetailResponseDto of(Post post, Long previousPostId, Long nextPostId) {
+  public static PostDetailResponseDto of(Post post, int count, Long previousPostId,
+      Long nextPostId) {
     Long memberId = (post.getMember() != null) ? post.getMember().getId() : null;
 
     return PostDetailResponseDto.builder()
@@ -33,6 +35,7 @@ public class PostDetailResponseDto {
         .nickname(post.getNickname())
         .memberId(memberId)
         .content(post.getContent())
+        .replyCount(count)
         .previousId(previousPostId)
         .nextId(nextPostId)
         .creationTime(post.getCreationTime())

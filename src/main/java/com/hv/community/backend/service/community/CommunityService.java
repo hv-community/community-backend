@@ -4,10 +4,13 @@ import com.hv.community.backend.domain.community.Community;
 import com.hv.community.backend.domain.community.Post;
 import com.hv.community.backend.domain.community.Reply;
 import com.hv.community.backend.domain.member.Member;
+import com.hv.community.backend.dto.community.CommunityDto;
 import com.hv.community.backend.dto.community.CommunityListResponseDto;
+import com.hv.community.backend.dto.community.IdResponseDto;
 import com.hv.community.backend.dto.community.PostCreateRequestDto;
 import com.hv.community.backend.dto.community.PostDetailResponseDto;
 import com.hv.community.backend.dto.community.PostDto;
+import com.hv.community.backend.dto.community.PostListResponseDto;
 import com.hv.community.backend.dto.community.PostReplyResponseDto;
 import com.hv.community.backend.dto.community.PostUpdateRequestDto;
 import com.hv.community.backend.dto.community.ReplyCreateRequestDto;
@@ -21,9 +24,7 @@ import com.hv.community.backend.repository.community.ReplyRepository;
 import com.hv.community.backend.repository.member.MemberRepository;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -77,34 +78,22 @@ public class CommunityService {
     }
   }
 
-  public Map<String, Object> communityListV1(Integer page, Integer pageSize) {
+  public CommunityListResponseDto communityListV1(Integer page, Integer pageSize) {
     validatePageInput(page, pageSize);
     Pageable pageable = PageRequest.of(page - 1, pageSize);
     Page<Community> communityList = communityRepository.findAll(pageable);
-    List<CommunityListResponseDto> communityListResponseDtos = communityList.stream()
-        .map(CommunityListResponseDto::of).toList();
-    Map<String, Object> responseData = new HashMap<>();
+    List<CommunityDto> communityDtos = communityList.stream()
+        .map(CommunityDto::of).toList();
 
     validatePage(page, communityList);
     try {
-      int currentPage = communityList.getNumber() + 1;
-      Integer prev = (!communityList.hasPrevious()) ? null : currentPage - 1;
-      Integer next = (!communityList.hasNext()) ? null : currentPage + 1;
-
-      responseData.put("page", currentPage);
-      responseData.put("total_page", communityList.getTotalPages());
-      responseData.put("page_size", pageSize);
-      responseData.put("prev", prev);
-      responseData.put("next", next);
-      responseData.put("items", communityListResponseDtos);
-
-      return responseData;
+      return CommunityListResponseDto.of(communityDtos, communityList, pageSize);
     } catch (Exception e) {
       throw new CommunityException("COMMUNITY:COMMUNITY_LIST_FAIL");
     }
   }
 
-  public Map<String, Object> postListV1(Long communityId, Integer page, Integer pageSize) {
+  public PostListResponseDto postListV1(Long communityId, Integer page, Integer pageSize) {
     validatePageInput(page, pageSize);
     Community community = communityRepository.findById(communityId)
         .orElseThrow(() -> new CommunityException("COMMUNITY:COMMUNITY_INVALID"));
@@ -116,20 +105,9 @@ public class CommunityService {
     try {
       List<PostDto> postDtos = postPage.stream()
           .map(PostDto::of).toList();
-      Map<String, Object> responseData = new HashMap<>();
 
-      int currentPage = postPage.getNumber() + 1;
-      Integer prev = (!postPage.hasPrevious()) ? null : currentPage - 1;
-      Integer next = (!postPage.hasNext()) ? null : currentPage + 1;
+      return PostListResponseDto.of(postDtos, postPage, pageSize);
 
-      responseData.put("page", currentPage);
-      responseData.put("total_page", postPage.getTotalPages());
-      responseData.put("page_size", pageSize);
-      responseData.put("prev", prev);
-      responseData.put("next", next);
-      responseData.put("items", postDtos);
-
-      return responseData;
     } catch (Exception e) {
       throw new CommunityException("COMMUNITY:POST_LIST_FAIL");
     }
@@ -151,8 +129,10 @@ public class CommunityService {
       nextPostId = nextPost.getId();
     }
 
+    List<Reply> reply = replyRepository.findListByPost(post);
+    int count = reply.size();
     try {
-      return PostDetailResponseDto.of(post, previousPostId, nextPostId);
+      return PostDetailResponseDto.of(post, count, previousPostId, nextPostId);
     } catch (Exception e) {
       throw new CommunityException("COMMUNITY:POST_DETAIL_FAIL");
     }
@@ -163,20 +143,18 @@ public class CommunityService {
     Post post = postRepository.findById(postId)
         .orElseThrow(() -> new CommunityException(postInvalid));
     Pageable pageable = PageRequest.of(page - 1, pageSize);
-    Page<Reply> replyPage = replyRepository.findByPost(post, pageable);
+    Page<Reply> replyPage = replyRepository.findPageByPost(post, pageable);
 
     validatePage(page, replyPage);
     try {
       List<ReplyDto> replyDtoList = replyPage.stream().map(ReplyDto::of).toList();
-
       return PostReplyResponseDto.of(replyDtoList, replyPage, pageSize);
     } catch (Exception e) {
       throw new CommunityException("COMMUNITY:POST_REPLY_FAIL");
     }
-
   }
 
-  public Long postCreateV1(String email, Long communityId,
+  public IdResponseDto postCreateV1(String email, Long communityId,
       PostCreateRequestDto postCreateRequestDto) {
     Community community = communityRepository.findById(communityId)
         .orElseThrow(() -> new CommunityException("COMMUNITY:COMMUNITY_INVALID"));
@@ -201,7 +179,9 @@ public class CommunityService {
 
       post.setCommunity(community);
       postRepository.save(post);
-      return post.getId();
+      IdResponseDto idResponseDto = new IdResponseDto();
+      idResponseDto.setId(post.getId());
+      return idResponseDto;
     } catch (Exception e) {
       throw new CommunityException("COMMUNITY:POST_CREATE_FAIL");
     }
@@ -293,7 +273,7 @@ public class CommunityService {
     }
   }
 
-  public Long replyCreateV1(String email, Long postId,
+  public IdResponseDto replyCreateV1(String email, Long postId,
       ReplyCreateRequestDto replyCreateRequestDto) {
     Post post = postRepository.findById(postId)
         .orElseThrow(() -> new CommunityException(postInvalid));
@@ -317,7 +297,9 @@ public class CommunityService {
       reply.setPost(post);
       replyRepository.save(reply);
       postRepository.save(post);
-      return reply.getId();
+      IdResponseDto idResponseDto = new IdResponseDto();
+      idResponseDto.setId(reply.getId());
+      return idResponseDto;
     } catch (Exception e) {
       throw new CommunityException("COMMUNITY:REPLY_CREATE_FAIL");
     }

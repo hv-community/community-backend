@@ -15,31 +15,27 @@ import org.springframework.data.domain.Page;
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class PostListResponseDto {
 
-  private final int page;
-  private final int pageSize;
-  private final int prev;
-  private final int next;
-  private final List<PostDto> items;
+  private Integer next;
+  private Integer prev;
+  private int totalPage;
+  private int page;
+  private int pageSize;
+  private List<PostDto> items;
 
-  public PostListResponseDto(int page, int pageSize, int prev, int next, List<PostDto> items) {
-    this.page = page;
-    this.pageSize = pageSize;
-    this.prev = prev;
-    this.next = next;
-    this.items = items;
-  }
+  public static PostListResponseDto of(List<PostDto> postDtoList,
+      Page<Post> postPage, int pageSize) {
+    int currentPage = postPage.getNumber() + 1;
 
-  public static PostListResponseDto of(Page<Post> postPage, int pageSize) {
-    List<PostDto> postListResponseDtos = postPage.stream()
-        .map(PostDto::of)
-        .toList();
+    Integer prev = (!postPage.hasPrevious()) ? null : currentPage - 1;
+    Integer next = (!postPage.hasNext()) ? null : currentPage + 1;
 
-    return new PostListResponseDto(
-        postPage.getNumber(),
-        pageSize,
-        postPage.getNumber() - 1,
-        postPage.getNumber() + 1,
-        postListResponseDtos
-    );
+    return PostListResponseDto.builder()
+        .next(next)
+        .prev(prev)
+        .totalPage(postPage.getTotalPages())
+        .page(currentPage)
+        .pageSize(pageSize)
+        .items(postDtoList)
+        .build();
   }
 }

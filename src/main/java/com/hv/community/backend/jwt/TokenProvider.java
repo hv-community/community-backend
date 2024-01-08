@@ -1,7 +1,8 @@
 package com.hv.community.backend.jwt;
 
 
-import com.hv.community.backend.dto.TokenDto;
+import com.hv.community.backend.dto.AccessTokenDto;
+import com.hv.community.backend.dto.JwtTokenDto;
 import com.hv.community.backend.exception.MemberException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -52,7 +53,7 @@ public class TokenProvider implements InitializingBean {
   }
 
   // Authentication 의 권한 정보를 이용해 토큰 생성
-  public TokenDto createToken(Authentication authentication) {
+  public JwtTokenDto createToken(Authentication authentication) {
     // 로그인 시도 유저의 권한들
     String authorities = authentication.getAuthorities().stream()
         .map(GrantedAuthority::getAuthority)
@@ -76,15 +77,17 @@ public class TokenProvider implements InitializingBean {
         .setExpiration(refreshTokenExpiresIn)
         .compact();
 
-    TokenDto tokenDto = new TokenDto();
-    tokenDto.setAccessToken(accessToken);
-    tokenDto.setRefreshToken(refreshToken);
-    return tokenDto;
+    JwtTokenDto jwtTokenDto = new JwtTokenDto();
+    jwtTokenDto.setAccessToken(accessToken);
+    jwtTokenDto.setRefreshToken(refreshToken);
+    return jwtTokenDto;
   }
 
-  public String refreshAccessToken(String refreshToken) {
+  public AccessTokenDto refreshAccessToken(String refreshToken) {
     Authentication authentication = getAuthentication(refreshToken);
-    return createToken(authentication).getAccessToken();
+    AccessTokenDto accessTokenDto = new AccessTokenDto();
+    accessTokenDto.setAccessToken(createToken(authentication).getAccessToken());
+    return accessTokenDto;
   }
 
   // accessToken 정보 반환

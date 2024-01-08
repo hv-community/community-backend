@@ -4,8 +4,10 @@ package com.hv.community.backend.service.member;
 import com.hv.community.backend.domain.member.Member;
 import com.hv.community.backend.domain.member.MemberTemp;
 import com.hv.community.backend.domain.member.Role;
+import com.hv.community.backend.dto.JwtTokenDto;
 import com.hv.community.backend.dto.TokenDto;
 import com.hv.community.backend.dto.member.EmailActivateRequestDto;
+import com.hv.community.backend.dto.member.ProfileResponseDto;
 import com.hv.community.backend.dto.member.SignupRequestDto;
 import com.hv.community.backend.exception.MemberException;
 import com.hv.community.backend.jwt.TokenProvider;
@@ -57,7 +59,7 @@ public class MemberService {
     this.roleRepository = roleRepository;
   }
 
-  public String checkEmailDuplicationV1(SignupRequestDto signupRequestDto) {
+  public TokenDto checkEmailDuplicationV1(SignupRequestDto signupRequestDto) {
     // 해당 이메일이 존재하는경우
     // 토큰값이 있는가?
     // 토큰이 있다면 생성일로부터 24시간이 지났는가?
@@ -98,7 +100,7 @@ public class MemberService {
     return signupV1(signupRequestDto);
   }
 
-  private String signupV1(SignupRequestDto signupRequestDto) {
+  private TokenDto signupV1(SignupRequestDto signupRequestDto) {
     String token;
     try {
       Role role = new Role();
@@ -123,7 +125,9 @@ public class MemberService {
     // 이메일 활성화 코드 메일 발송
     String verificationCode = createEmailVerificationCodeV1(token);
     mailService.sendEmailV1(signupRequestDto.getEmail(), "이메일 인증 코드입니다.", verificationCode);
-    return token;
+    TokenDto tokenDto = new TokenDto();
+    tokenDto.setToken(token);
+    return tokenDto;
   }
 
   private String generateRandomNumericCodeV1(int length) {
@@ -192,7 +196,7 @@ public class MemberService {
   }
 
   @Transactional(readOnly = true)
-  public TokenDto signinV1(String email, String password) {
+  public JwtTokenDto signinV1(String email, String password) {
     Member member = memberRepository.findByEmail(email)
         .orElseThrow(() -> new MemberException(unregisterd));
     if (member.getEmailActivated() == 1) {
@@ -218,16 +222,16 @@ public class MemberService {
     }
   }
 
-  public Map<String, String> profileV1(String email) {
+  public ProfileResponseDto profileV1(String email) {
     Member member = memberRepository.findByEmail(email)
         .orElseThrow(() -> new MemberException(unregisterd));
     try {
-      Map<String, String> responseData = new HashMap<>();
-      responseData.put("id", String.valueOf(member.getId()));
-      responseData.put("email", member.getEmail());
-      responseData.put("nickname", member.getNickname());
+      ProfileResponseDto profileResponseDto = new ProfileResponseDto();
 
-      return responseData;
+      profileResponseDto.setId(String.valueOf(member.getId()));
+      profileResponseDto.setEmail(member.getEmail());
+      profileResponseDto.setNickname(member.getNickname());
+      return profileResponseDto;
     } catch (Exception e) {
       throw new MemberException("MEMBER:GET_MY_PROFILE_ERROR");
     }

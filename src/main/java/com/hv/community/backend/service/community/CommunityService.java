@@ -180,7 +180,7 @@ public class CommunityService {
       Calendar calendar = Calendar.getInstance();
       Date currentDate = calendar.getTime();
       post.setCreationTime(currentDate);
-
+      post.setModificationTime(currentDate);
       post.setCommunity(community);
       postRepository.save(post);
       IdResponseDto idResponseDto = new IdResponseDto();
@@ -296,6 +296,7 @@ public class CommunityService {
       Calendar calendar = Calendar.getInstance();
       Date currentDate = calendar.getTime();
       reply.setCreationTime(currentDate);
+      reply.setModificationTime(currentDate);
 
       reply.setCommunity(post.getCommunity());
       reply.setPost(post);

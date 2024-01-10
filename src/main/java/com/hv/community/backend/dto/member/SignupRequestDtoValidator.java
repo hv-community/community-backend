@@ -34,7 +34,7 @@ public class SignupRequestDtoValidator implements Validator {
         throw new MemberException("MEMBER:EMAIL_FORM_ERROR");
       }
     }
-    if (signupRequestDto.getNickname().length() < 4 ||
+    if (signupRequestDto.getNickname().length() < 2 ||
         signupRequestDto.getNickname().length() > 20) {
       throw new MemberException("MEMBER:NICKNAME_FORM_ERROR");
     }

@@ -1,6 +1,7 @@
 package com.hv.community.backend.controller;
 
 import com.hv.community.backend.dto.EmptyResponseDto;
+import com.hv.community.backend.dto.community.CommunityDto;
 import com.hv.community.backend.dto.community.CommunityListResponseDto;
 import com.hv.community.backend.dto.community.IdResponseDto;
 import com.hv.community.backend.dto.community.PostCreateRequestDto;
@@ -57,6 +58,19 @@ public class CommunityController {
     CommunityListResponseDto communityListResponseDto = communityService.communityListV1(page,
         pageSize);
     return ResponseEntity.ok(communityListResponseDto);
+  }
+
+  @GetMapping("/v1/{community_id}/detail")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "Successful response",
+          content = @io.swagger.v3.oas.annotations.media.Content(mediaType = "application/json",
+              schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = CommunityDto.class)))
+  })
+  public ResponseEntity<CommunityDto> communityDetailV1(
+      @Parameter(name = "community_id", description = "Community ID Parameter", example = "1", in = ParameterIn.PATH)
+      @PathVariable("community_id") Long communityId) {
+    CommunityDto communityDto = communityService.communityDetailV1(communityId);
+    return ResponseEntity.ok(communityDto);
   }
 
   @GetMapping("/v1/{community_id}")
@@ -209,11 +223,12 @@ public class CommunityController {
       @PathVariable("post_id") Long postId,
       @RequestBody ReplyCreateRequestDto replyCreateRequestDto) {
     if (replyCreateRequestDto.getContent().trim().isEmpty()) {
-      throw new CommunityException("COMMUNITY:EMPTY_REPLY");
+      throw new CommunityException("COMMUNITY:REPLY_INVALID");
     }
     String email = getEmail(user);
 
-    IdResponseDto idResponseDto = communityService.replyCreateV1(email, postId, replyCreateRequestDto);
+    IdResponseDto idResponseDto = communityService.replyCreateV1(email, postId,
+        replyCreateRequestDto);
     return ResponseEntity.ok(idResponseDto);
   }
 
@@ -256,7 +271,7 @@ public class CommunityController {
       @PathVariable("reply_id") Long replyId,
       @RequestBody ReplyUpdateRequestDto replyUpdateRequestDto) {
     if (replyUpdateRequestDto.getContent().trim().isEmpty()) {
-      throw new CommunityException("COMMUNITY:EMPTY_REPLY");
+      throw new CommunityException("COMMUNITY:REPLY_INVALID");
     }
     String email = getEmail(user);
 

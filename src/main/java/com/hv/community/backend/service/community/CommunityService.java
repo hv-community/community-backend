@@ -30,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +51,7 @@ public class CommunityService {
   private static String replyInvalid = "COMMUNITY:REPLY_INVALID";
   private static String passwordInvalid = "COMMUNITY:PASSWORD_INVALID";
   private static String permissionInvalid = "COMMUNITY:PERMISSION_INVALID";
+  private static String communityInvalid = "COMMUNITY:COMMUNITY_INVALID";
 
   public CommunityService(CommunityRepository communityRepository, PostRepository postRepository,
       ReplyRepository replyRepository, MemberRepository memberRepository,
@@ -93,12 +95,22 @@ public class CommunityService {
     }
   }
 
+  public CommunityDto communityDetailV1(Long communityId) {
+    Community community = communityRepository.findById(communityId)
+        .orElseThrow(() -> new CommunityException(communityInvalid));
+    try {
+      return CommunityDto.of(community);
+    } catch (Exception e) {
+      throw new CommunityException("COMMUNITY:COMMUNITY_DETAIL_FAIL");
+    }
+  }
+
   public PostListResponseDto postListV1(Long communityId, Integer page, Integer pageSize) {
     validatePageInput(page, pageSize);
     Community community = communityRepository.findById(communityId)
-        .orElseThrow(() -> new CommunityException("COMMUNITY:COMMUNITY_INVALID"));
+        .orElseThrow(() -> new CommunityException(communityInvalid));
 
-    Pageable pageable = PageRequest.of(page - 1, pageSize);
+    Pageable pageable = PageRequest.of(page - 1, pageSize, Sort.by(Sort.Direction.DESC, "id"));
     Page<Post> postPage = postRepository.findByCommunity(community, pageable);
     validatePage(page, postPage);
     List<PostDto> postDtoList = postPage.stream()
@@ -111,7 +123,6 @@ public class CommunityService {
 
     try {
       return PostListResponseDto.of(postDtoList, postPage, pageSize);
-
     } catch (Exception e) {
       throw new CommunityException("COMMUNITY:POST_LIST_FAIL");
     }
@@ -161,13 +172,16 @@ public class CommunityService {
   public IdResponseDto postCreateV1(String email, Long communityId,
       PostCreateRequestDto postCreateRequestDto) {
     Community community = communityRepository.findById(communityId)
-        .orElseThrow(() -> new CommunityException("COMMUNITY:COMMUNITY_INVALID"));
+        .orElseThrow(() -> new CommunityException(communityInvalid));
 
     Post post = new Post();
     post.setTitle(postCreateRequestDto.getTitle());
     post.setContent(postCreateRequestDto.getContent());
     // 유저일때만 email저장 아니면 code만 저장
     if (email.isEmpty()) {
+      if (postCreateRequestDto.getNickname().length() < 2) {
+        throw new CommunityException("COMMUNITY:UNAVILABLE_USER_NAME");
+      }
       post.setNickname(postCreateRequestDto.getNickname());
       post.setPassword(passwordEncoder.encode(postCreateRequestDto.getPassword()));
     } else {
@@ -284,6 +298,9 @@ public class CommunityService {
     Reply reply = new Reply();
     reply.setContent(replyCreateRequestDto.getContent());
     if (email.isEmpty()) {
+      if (replyCreateRequestDto.getNickname().length() < 2) {
+        throw new CommunityException("COMMUNITY:UNAVILABLE_USER_NAME");
+      }
       reply.setNickname(replyCreateRequestDto.getNickname());
       reply.setPassword(passwordEncoder.encode(replyCreateRequestDto.getPassword()));
     } else {

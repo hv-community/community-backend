@@ -128,16 +128,17 @@ public class TokenProvider implements InitializingBean {
       return true;
     } catch (io.jsonwebtoken.security.SecurityException | MalformedJwtException e) {
       log.info("잘못된 JWT 서명입니다.");
-      throw new InvalidAccessTokenException();
+      return false;
     } catch (ExpiredJwtException expiredJwtException) {
       log.info("만료된 JWT 토큰입니다.");
-      throw expiredJwtException;
+      return false;
     } catch (UnsupportedJwtException e) {
       log.info("미지원 JWT 토큰입니다.");
-      throw new InvalidAccessTokenException();
+      return false;
     } catch (IllegalArgumentException e) {
       log.info("잘못된 JWT 토큰입니다.");
-      throw new InvalidAccessTokenException();
+      return false;
     }
   }
+
 }

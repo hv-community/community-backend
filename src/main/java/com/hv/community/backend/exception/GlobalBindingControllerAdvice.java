@@ -37,7 +37,7 @@ public class GlobalBindingControllerAdvice {
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   public ErrorResponseDto handleMemberException(MemberException e, HttpServletRequest request) {
     configureSentryScope(e.getId(), request);
-    log.debug("MEMBER_ERROR : {}", e.getId());
+    log.debug("{}", e.getId());
     return e.handleMemberException();
   }
 
@@ -46,7 +46,7 @@ public class GlobalBindingControllerAdvice {
   public ErrorResponseDto handleCommunityException(CommunityException e,
       HttpServletRequest request) {
     configureSentryScope(e.getId(), request);
-    log.debug("COMMUNITY_ERROR : {}", e.getId());
+    log.debug("{}", e.getId());
     return e.handleCommunityException();
   }
 

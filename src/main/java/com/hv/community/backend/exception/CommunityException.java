@@ -27,6 +27,8 @@ public class CommunityException extends RuntimeException {
         return ErrorResponseDto.of(id, "댓글이 존재하지 않습니다");
       case "COMMUNITY:EMPTY_TITLE_OR_CONTENT":
         return ErrorResponseDto.of(id, "제목 혹은 내용이 비어있습니다");
+      case "COMMUNITY:EMPTY_CONTENT":
+        return ErrorResponseDto.of(id, "내용이 비어있습니다");
       case "COMMUNITY:PASSWORD_INVALID":
         return ErrorResponseDto.of(id, "비밀번호가 일치하지 않습니다");
       case "COMMUNITY:PERMISSION_INVALID":
@@ -51,7 +53,7 @@ public class CommunityException extends RuntimeException {
         return ErrorResponseDto.of(id, "댓글 수정중 오류가 발생했습니다");
       case "COMMUNITY:REPLY_DELETE_FAIL":
         return ErrorResponseDto.of(id, "댓글 삭제중 오류가 발생했습니다");
-      case "COMMUNITY:unavailable_USER_NAME":
+      case "COMMUNITY:UNAVAILABLE_USER_NAME":
         return ErrorResponseDto.of(id, "부적절한 유저명입니다");
       case "COMMUNITY:COMMUNITY_DETAIL_FAIL":
         return ErrorResponseDto.of(id, "게시판 상세데이터를 가져오지 못했습니다");

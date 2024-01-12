@@ -223,7 +223,7 @@ public class CommunityController {
       @PathVariable("post_id") Long postId,
       @RequestBody ReplyCreateRequestDto replyCreateRequestDto) {
     if (replyCreateRequestDto.getContent().trim().isEmpty()) {
-      throw new CommunityException("COMMUNITY:REPLY_INVALID");
+      throw new CommunityException("COMMUNITY:EMPTY_CONTENT");
     }
     String email = getEmail(user);
 
@@ -271,7 +271,7 @@ public class CommunityController {
       @PathVariable("reply_id") Long replyId,
       @RequestBody ReplyUpdateRequestDto replyUpdateRequestDto) {
     if (replyUpdateRequestDto.getContent().trim().isEmpty()) {
-      throw new CommunityException("COMMUNITY:REPLY_INVALID");
+      throw new CommunityException("COMMUNITY:EMPTY_CONTENT");
     }
     String email = getEmail(user);
 

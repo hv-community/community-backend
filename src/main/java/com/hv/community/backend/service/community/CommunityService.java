@@ -180,7 +180,7 @@ public class CommunityService {
     // 유저일때만 email저장 아니면 code만 저장
     if (email.isEmpty()) {
       if (postCreateRequestDto.getNickname().length() < 2) {
-        throw new CommunityException("COMMUNITY:UNAVILABLE_USER_NAME");
+        throw new CommunityException("COMMUNITY:UNAVAILABLE_USER_NAME");
       }
       post.setNickname(postCreateRequestDto.getNickname());
       post.setPassword(passwordEncoder.encode(postCreateRequestDto.getPassword()));
@@ -221,7 +221,8 @@ public class CommunityService {
     // 등록된 유저가 아닐 경우
     if (email.isEmpty()) {
       // 게시물에 비밀번호가없다? > 유저가쓴글 > 권한없음
-      if (post.getPassword() == null) {
+      if (postUpdateRequestDto.getPassword() == null || postUpdateRequestDto.getPassword().trim()
+          .isEmpty()) {
         throw new CommunityException(permissionInvalid);
       }
       if (passwordEncoder.matches(postUpdateRequestDto.getPassword(), post.getPassword())) {
@@ -265,11 +266,12 @@ public class CommunityService {
     // 등록된 유저가 아닐 경우
     if (email.isEmpty()) {
       // 게시물에 비밀번호가없다? > 유저가쓴글 > 권한없음
-      if (post.getPassword() == null) {
+      if (password == null || password.trim().isEmpty()) {
         throw new CommunityException(permissionInvalid);
       }
       if (passwordEncoder.matches(password, post.getPassword())) {
         try {
+          replyRepository.deleteByPost(post);
           postRepository.delete(post);
           return;
         } catch (Exception e) {
@@ -284,6 +286,7 @@ public class CommunityService {
       throw new CommunityException(permissionInvalid);
     } else {
       try {
+        replyRepository.deleteByPost(post);
         postRepository.delete(post);
       } catch (Exception e) {
         throw new CommunityException("COMMUNITY:POST_DELETE_FAIL");
@@ -299,7 +302,7 @@ public class CommunityService {
     reply.setContent(replyCreateRequestDto.getContent());
     if (email.isEmpty()) {
       if (replyCreateRequestDto.getNickname().length() < 2) {
-        throw new CommunityException("COMMUNITY:UNAVILABLE_USER_NAME");
+        throw new CommunityException("COMMUNITY:UNAVAILABLE_USER_NAME");
       }
       reply.setNickname(replyCreateRequestDto.getNickname());
       reply.setPassword(passwordEncoder.encode(replyCreateRequestDto.getPassword()));
@@ -344,7 +347,8 @@ public class CommunityService {
     // 등록된 유저가 아닐 경우
     if (email.isEmpty()) {
       // 게시물에 비밀번호가없다? > 유저가쓴글 > 권한없음
-      if (reply.getPassword() == null) {
+      if (replyUpdateRequestDto.getPassword() == null || replyUpdateRequestDto.getPassword().trim()
+          .isEmpty()) {
         throw new CommunityException(passwordInvalid);
       }
       // 이메일없는 유저요청 + 등록된 유저가 쓴글이 아닐때 > 비밀번호 검사
@@ -386,7 +390,7 @@ public class CommunityService {
     // 등록된 유저가 아닐 경우
     if (email.isEmpty()) {
       // 게시물에 비밀번호가없다? > 유저가쓴글 > 권한없음
-      if (reply.getPassword() == null) {
+      if (password == null || password.trim().isEmpty()) {
         throw new CommunityException(passwordInvalid);
       }
       if (passwordEncoder.matches(password, reply.getPassword())) {

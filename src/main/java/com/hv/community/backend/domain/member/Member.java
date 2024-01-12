@@ -5,13 +5,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.util.Date;
-import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -49,12 +45,4 @@ public class Member {
 
   @OneToOne(mappedBy = "member")
   private ResetVerificationCode resetVerificationCode;
-
-  // jwt
-  @ManyToMany
-  @JoinTable(
-      name = "member_role",
-      joinColumns = {@JoinColumn(name = "member_id", referencedColumnName = "id")},
-      inverseJoinColumns = {@JoinColumn(name = "role_name", referencedColumnName = "role_name")})
-  private Set<Role> roles;
 }

@@ -2,7 +2,9 @@ package com.hv.community.backend.service.member;
 
 
 import com.hv.community.backend.domain.member.Member;
+import com.hv.community.backend.domain.member.MemberRole;
 import com.hv.community.backend.repository.member.MemberRepository;
+import com.hv.community.backend.repository.member.MemberRoleRepository;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,10 +23,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class CustomUserDetailsService implements UserDetailsService {
 
   private final MemberRepository memberRepository;
+  private final MemberRoleRepository memberRoleRepository;
 
   @Autowired
-  public CustomUserDetailsService(MemberRepository memberRepository) {
+  public CustomUserDetailsService(MemberRepository memberRepository,
+      MemberRoleRepository memberRoleRepository) {
     this.memberRepository = memberRepository;
+    this.memberRoleRepository = memberRoleRepository;
   }
 
   @Override
@@ -36,9 +41,13 @@ public class CustomUserDetailsService implements UserDetailsService {
 
   // DB 의 Member 값으로 UserDetails 객체 생성 후 반환
   private UserDetails createUserDetails(Member member) {
+
     log.info(member.toString());
-    List<SimpleGrantedAuthority> grantedAuthorities = member.getRoles().stream()
-        .map(role -> new SimpleGrantedAuthority(role.getRoleName()))
+
+    List<MemberRole> memberRoles = memberRoleRepository.findByMember(member);
+
+    List<SimpleGrantedAuthority> grantedAuthorities = memberRoles.stream()
+        .map(role -> new SimpleGrantedAuthority(role.getRole().getRoleName()))
         .toList();
 
     return new User(

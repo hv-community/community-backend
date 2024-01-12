@@ -14,4 +14,6 @@ public interface ReplyRepository extends JpaRepository<Reply, Long> {
   List<Reply> findListByPost(Post post);
 
   List<Reply> findListByPostIn(List<Post> postList);
+
+  void deleteByPost(Post post);
 }

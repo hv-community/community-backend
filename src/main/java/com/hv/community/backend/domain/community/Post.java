@@ -30,7 +30,7 @@ public class Post {
   private String title;
 
   @Temporal(TemporalType.TIMESTAMP)
-  @Column(name = "create_time")
+  @Column(name = "creation_time")
   private Date creationTime;
 
   @Temporal(TemporalType.TIMESTAMP)

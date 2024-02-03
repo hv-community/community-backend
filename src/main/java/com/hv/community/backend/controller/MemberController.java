@@ -7,6 +7,7 @@ import com.hv.community.backend.dto.JwtTokenDto;
 import com.hv.community.backend.dto.TokenDto;
 import com.hv.community.backend.dto.member.EmailActivateRequestDto;
 import com.hv.community.backend.dto.member.EmailSendRequestDto;
+import com.hv.community.backend.dto.member.EmailVerificationCodeDto;
 import com.hv.community.backend.dto.member.ProfileResponseDto;
 import com.hv.community.backend.dto.member.RefreshRequestDto;
 import com.hv.community.backend.dto.member.SigninRequestDto;
@@ -22,7 +23,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.User;
@@ -70,9 +70,9 @@ public class MemberController {
   EmailSendRequestDto emailSendRequestDto) {
     String token = emailSendRequestDto.getToken();
 
-    Map<String, String> data = memberService.getEmailVerificationCodeV1(token);
-    String email = data.keySet().iterator().next();
-    String verificationCode = data.get(email);
+    EmailVerificationCodeDto data = memberService.getEmailVerificationCodeV1(token);
+    String email = data.getEmail();
+    String verificationCode = data.getVerificationCode();
 
     mailService.sendEmailV1(email, "이메일 인증 메일 입니다", verificationCode);
     EmptyResponseDto emptyResponseDto = null;

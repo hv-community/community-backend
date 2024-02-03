@@ -2,10 +2,8 @@ package com.hv.community.backend.dto.community;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
-import lombok.Setter;
 
 @Getter
-@Setter
 public class PostCreateRequestDto {
 
   @Schema(description = "Title of the post", example = "Example Title")

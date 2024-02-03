@@ -8,6 +8,7 @@ import com.hv.community.backend.domain.member.Role;
 import com.hv.community.backend.dto.JwtTokenDto;
 import com.hv.community.backend.dto.TokenDto;
 import com.hv.community.backend.dto.member.EmailActivateRequestDto;
+import com.hv.community.backend.dto.member.EmailVerificationCodeDto;
 import com.hv.community.backend.dto.member.ProfileResponseDto;
 import com.hv.community.backend.dto.member.SignupRequestDto;
 import com.hv.community.backend.exception.MemberException;
@@ -19,8 +20,6 @@ import com.hv.community.backend.repository.member.RoleRepository;
 import com.hv.community.backend.service.mail.MailService;
 import java.security.SecureRandom;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
@@ -145,9 +144,9 @@ public class MemberService {
     // 이메일 활성화 코드 메일 발송
     String verificationCode = createEmailVerificationCodeV1(token);
     mailService.sendEmailV1(signupRequestDto.getEmail(), "이메일 인증 코드입니다.", verificationCode);
-    TokenDto tokenDto = new TokenDto();
-    tokenDto.setToken(token);
-    return tokenDto;
+    return TokenDto.builder()
+        .token(token)
+        .build();
   }
 
 
@@ -177,19 +176,21 @@ public class MemberService {
     }
   }
 
-  public Map<String, String> getEmailVerificationCodeV1(String token) {
+  public EmailVerificationCodeDto getEmailVerificationCodeV1(String token) {
     Member member = memberRepository.findByToken(token)
         .orElseThrow(() -> new MemberException(unregistered));
     try {
       if (member == null || member.getMemberTemp() == null) {
-        Map<String, String> data = new HashMap<>();
         assert member != null;
-        data.put(member.getEmail(), createEmailVerificationCodeV1(token));
-        return data;
+        return EmailVerificationCodeDto.builder()
+            .email(member.getEmail())
+            .verificationCode(createEmailVerificationCodeV1(token))
+            .build();
       }
-      Map<String, String> data = new HashMap<>();
-      data.put(member.getEmail(), member.getMemberTemp().getCode());
-      return data;
+      return EmailVerificationCodeDto.builder()
+          .email(member.getEmail())
+          .verificationCode(member.getMemberTemp().getCode())
+          .build();
     } catch (Exception e) {
       throw new MemberException("MEMBER:GET_EMAIL_VERIFICATION_CODE_FAIL");
     }
@@ -246,12 +247,11 @@ public class MemberService {
     Member member = memberRepository.findByEmail(email)
         .orElseThrow(() -> new MemberException(unregistered));
     try {
-      ProfileResponseDto profileResponseDto = new ProfileResponseDto();
-
-      profileResponseDto.setId(String.valueOf(member.getId()));
-      profileResponseDto.setEmail(member.getEmail());
-      profileResponseDto.setNickname(member.getNickname());
-      return profileResponseDto;
+      return ProfileResponseDto.builder()
+          .id(String.valueOf(member.getId()))
+          .email(member.getEmail())
+          .nickname(member.getNickname())
+          .build();
     } catch (Exception e) {
       throw new MemberException("MEMBER:GET_MY_PROFILE_ERROR");
     }

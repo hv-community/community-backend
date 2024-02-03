@@ -197,9 +197,10 @@ public class CommunityService {
       post.setModificationTime(currentDate);
       post.setCommunity(community);
       postRepository.save(post);
-      IdResponseDto idResponseDto = new IdResponseDto();
-      idResponseDto.setId(post.getId());
-      return idResponseDto;
+
+      return IdResponseDto.builder()
+          .id(post.getId())
+          .build();
     } catch (Exception e) {
       throw new CommunityException("COMMUNITY:POST_CREATE_FAIL");
     }
@@ -322,9 +323,10 @@ public class CommunityService {
       reply.setPost(post);
       replyRepository.save(reply);
       postRepository.save(post);
-      IdResponseDto idResponseDto = new IdResponseDto();
-      idResponseDto.setId(reply.getId());
-      return idResponseDto;
+
+      return IdResponseDto.builder()
+          .id(reply.getId())
+          .build();
     } catch (Exception e) {
       throw new CommunityException("COMMUNITY:REPLY_CREATE_FAIL");
     }

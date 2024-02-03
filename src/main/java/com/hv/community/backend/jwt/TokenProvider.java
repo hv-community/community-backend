@@ -77,17 +77,18 @@ public class TokenProvider implements InitializingBean {
         .setExpiration(refreshTokenExpiresIn)
         .compact();
 
-    JwtTokenDto jwtTokenDto = new JwtTokenDto();
-    jwtTokenDto.setAccessToken(accessToken);
-    jwtTokenDto.setRefreshToken(refreshToken);
-    return jwtTokenDto;
+    return JwtTokenDto.builder()
+        .accessToken(accessToken)
+        .refreshToken(refreshToken)
+        .build();
   }
 
   public AccessTokenDto refreshAccessToken(String refreshToken) {
     Authentication authentication = getAuthentication(refreshToken);
-    AccessTokenDto accessTokenDto = new AccessTokenDto();
-    accessTokenDto.setAccessToken(createToken(authentication).getAccessToken());
-    return accessTokenDto;
+
+    return AccessTokenDto.builder()
+        .accessToken(createToken(authentication).getAccessToken())
+        .build();
   }
 
   // accessToken 정보 반환

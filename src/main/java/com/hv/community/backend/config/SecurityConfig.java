@@ -51,16 +51,17 @@ public class SecurityConfig {
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
     httpSecurity
+        // REST >> csrf 사용하지않음 // csrf >> basic auth 에서만 사용
         .csrf(CsrfConfigurer::disable)
+        // 세션을 미사용 -> STATELESS 설정
+        .sessionManagement(
+            configurer -> configurer
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         // 인증, 접근 예외 핸들링 추가
         .exceptionHandling(
             authenticationManager -> authenticationManager
                 .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 .accessDeniedHandler(jwtAccessDeniedHandler))
-        // 세션을 미사용 -> STATELESS 설정
-        .sessionManagement(
-            configurer -> configurer
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         // 페이지 접근 권한 설정
         .authorizeHttpRequests(
             authorize -> authorize

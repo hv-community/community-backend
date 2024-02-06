@@ -2,35 +2,34 @@ package com.hv.community.backend.dto.community;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import com.hv.community.backend.domain.community.Reply;
+import com.hv.community.backend.domain.member.Member;
 import java.util.Date;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.Setter;
+import lombok.NoArgsConstructor;
 
 @Getter
-@Setter
 @Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class ReplyDto {
 
   private Long id;
   private String content;
   private String nickname;
-  private Long memberId;
+  private Member memberId;
   private Date creationTime;
   private Date modificationTime;
 
-
-  public static ReplyDto of(Reply reply) {
-
-    return ReplyDto.builder()
-        .id(reply.getId())
-        .content(reply.getContent())
-        .nickname(reply.getNickname())
-        .memberId(reply.getMember() != null ? reply.getMember().getId() : null)
-        .creationTime(reply.getCreationTime())
-        .modificationTime(reply.getModificationTime())
-        .build();
+  @Builder
+  public ReplyDto(Long id, String content, String nickname, Member memberId, Date creationTime,
+      Date modificationTime) {
+    this.id = id;
+    this.content = content;
+    this.nickname = nickname;
+    this.memberId = memberId;
+    this.creationTime = creationTime;
+    this.modificationTime = modificationTime;
   }
 }

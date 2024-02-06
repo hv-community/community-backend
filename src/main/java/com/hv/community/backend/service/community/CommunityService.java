@@ -22,10 +22,8 @@ import com.hv.community.backend.repository.community.CommunityRepository;
 import com.hv.community.backend.repository.community.PostRepository;
 import com.hv.community.backend.repository.community.ReplyRepository;
 import com.hv.community.backend.repository.member.MemberRepository;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
-import java.util.Objects;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,7 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@Transactional
+@Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class CommunityService {
 
   private final CommunityRepository communityRepository;
@@ -46,377 +45,276 @@ public class CommunityService {
   private final MemberRepository memberRepository;
   private final PasswordEncoder passwordEncoder;
 
-  private static String pageInvalid = "COMMUNITY:PAGE_INVALID";
-  private static String postInvalid = "COMMUNITY:POST_INVALID";
-  private static String replyInvalid = "COMMUNITY:REPLY_INVALID";
-  private static String passwordInvalid = "COMMUNITY:PASSWORD_INVALID";
-  private static String permissionInvalid = "COMMUNITY:PERMISSION_INVALID";
-  private static String communityInvalid = "COMMUNITY:COMMUNITY_INVALID";
+  private static final String COMMUNITY_PAGE_INVALID = "COMMUNITY:PAGE_INVALID";
+  private static final String COMMUNITY_POST_INVALID = "COMMUNITY:POST_INVALID";
+  private static final String COMMUNITY_REPLY_INVALID = "COMMUNITY:REPLY_INVALID";
+  private static final String COMMUNITY_PASSWORD_INVALID = "COMMUNITY:PASSWORD_INVALID";
+  private static final String COMMUNITY_PERMISSION_INVALID = "COMMUNITY:PERMISSION_INVALID";
+  private static final String COMMUNITY_COMMUNITY_INVALID = "COMMUNITY:COMMUNITY_INVALID";
 
-  public CommunityService(CommunityRepository communityRepository, PostRepository postRepository,
-      ReplyRepository replyRepository, MemberRepository memberRepository,
-      PasswordEncoder passwordEncoder) {
-    this.communityRepository = communityRepository;
-    this.postRepository = postRepository;
-    this.replyRepository = replyRepository;
-    this.memberRepository = memberRepository;
-    this.passwordEncoder = passwordEncoder;
+  public CommunityListResponseDto communityListV1(Integer page, Integer pageSize) {
+    validatePageInput(page, pageSize);
+    Pageable pageable = PageRequest.of(page - 1, pageSize);
+
+    Page<Community> communityPage = communityRepository.findAll(pageable);
+    validatePage(page, communityPage);
+
+    int currentPage = communityPage.getNumber() + 1;
+    Integer next = (!communityPage.hasNext()) ? null : currentPage + 1;
+    Integer prev = (!communityPage.hasPrevious()) ? null : currentPage - 1;
+
+    List<CommunityDto> communityDtoList = communityPage.stream()
+        .map(Community::buildCommunityDto).toList();
+
+    return CommunityListResponseDto.builder()
+        .next(next)
+        .prev(prev)
+        .totalPage(communityPage.getTotalPages())
+        .page(currentPage)
+        .pageSize(pageSize)
+        .items(communityDtoList)
+        .build();
+  }
+
+  public CommunityDto communityDetailV1(Long communityId) {
+    Community community = communityRepository.findById(communityId)
+        .orElseThrow(() -> new CommunityException(COMMUNITY_COMMUNITY_INVALID));
+    return community.buildCommunityDto();
+  }
+
+  public PostListResponseDto postListV1(Long communityId, Integer page, Integer pageSize) {
+    validatePageInput(page, pageSize);
+    Community community = communityRepository.findById(communityId)
+        .orElseThrow(() -> new CommunityException(COMMUNITY_COMMUNITY_INVALID));
+
+    Pageable pageable = PageRequest.of(page - 1, pageSize, Sort.by(Sort.Direction.DESC, "id"));
+    Page<Post> postPage = postRepository.findByCommunity(community, pageable);
+    validatePage(page, postPage);
+
+    int currentPage = postPage.getNumber() + 1;
+    Integer next = (!postPage.hasNext()) ? null : currentPage + 1;
+    Integer prev = (!postPage.hasPrevious()) ? null : currentPage - 1;
+
+    List<PostDto> postDtoList = postPage.stream().map(Post::buildPostDto).toList();
+
+    return PostListResponseDto.builder()
+        .next(next)
+        .prev(prev)
+        .totalPage(postPage.getTotalPages())
+        .page(page)
+        .pageSize(pageSize)
+        .items(postDtoList)
+        .build();
+  }
+
+  public PostDetailResponseDto postDetailV1(Long postId) {
+    Post post = postRepository.findById(postId)
+        .orElseThrow(() -> new CommunityException(COMMUNITY_POST_INVALID));
+    Long previousPostId = post.findPreviousPostId(postRepository);
+    Long nextPostId = post.findNextPostId(postRepository);
+
+    return post.buildPostDetailResponseDto(previousPostId, nextPostId);
+  }
+
+  public PostReplyResponseDto postReplyV1(Long postId, Integer page, Integer pageSize) {
+    validatePageInput(page, pageSize);
+    Post post = postRepository.findById(postId)
+        .orElseThrow(() -> new CommunityException(COMMUNITY_POST_INVALID));
+    Pageable pageable = PageRequest.of(page - 1, pageSize);
+    Page<Reply> replyPage = replyRepository.findPageByPost(post, pageable);
+    validatePage(page, replyPage);
+
+    int currentPage = replyPage.getNumber() + 1;
+    Integer next = (!replyPage.hasNext()) ? null : currentPage + 1;
+    Integer prev = (!replyPage.hasPrevious()) ? null : currentPage - 1;
+
+    List<ReplyDto> replyDtoList = replyPage.stream().map(Reply::buildReplyDto).toList();
+
+    return PostReplyResponseDto.builder()
+        .next(next)
+        .prev(prev)
+        .totalPage(replyPage.getTotalPages())
+        .page(page)
+        .pageSize(pageSize)
+        .items(replyDtoList)
+        .build();
+  }
+
+  public IdResponseDto postCreateV1(String email, Long communityId,
+      PostCreateRequestDto postCreateRequestDto) {
+    Community community = communityRepository.findById(communityId)
+        .orElseThrow(() -> new CommunityException(COMMUNITY_COMMUNITY_INVALID));
+
+    Member member = null;
+    if (!email.isEmpty()) {
+      member = memberRepository.findByEmail(email)
+          .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
+    }
+    String password =
+        (member == null) ? passwordEncoder.encode(postCreateRequestDto.getPassword()) : null;
+    Post post = community.createPost(postCreateRequestDto, password, member);
+
+    postRepository.save(post);
+    return post.buildIdResponseDto();
+    // 이 부분은 @Validated 로 구현 -> 제목 내용등이 비어있을때
+    // throw new CommunityException("COMMUNITY:POST_CREATE_FAIL");
+  }
+
+  public boolean postCheckPasswordV1(Post post, Long postId, String password) {
+    // postId로 post를 가져올 때
+    if (post == null) {
+      post = postRepository.findById(postId)
+          .orElseThrow(() -> new CommunityException(COMMUNITY_POST_INVALID));
+    }
+    // password validated
+    return post.checkPassword(passwordEncoder, password);
+  }
+
+  public void postUpdateV1(String email, Long postId, PostUpdateRequestDto postUpdateRequestDto) {
+    Post post = postRepository.findById(postId)
+        .orElseThrow(() -> new CommunityException(COMMUNITY_POST_INVALID));
+    // 멤버요청일 경우 글작성자가 맞는지 확인
+    if (email != null) {
+      if (post.checkMember(email)) {
+        post.editPost(postUpdateRequestDto);
+        postRepository.save(post);
+        return;
+      }
+      throw new CommunityException(COMMUNITY_PERMISSION_INVALID);
+    }
+
+    // 등록된 유저가 아닐 경우
+    // 게시물에 비밀번호가없다? > 유저가쓴글 > 권한없음
+    if (postCheckPasswordV1(post, null, postUpdateRequestDto.getPassword())) {
+      post.editPost(postUpdateRequestDto);
+      postRepository.save(post);
+      return;
+    }
+    throw new CommunityException(COMMUNITY_PASSWORD_INVALID);
   }
 
 
+  public void postDeleteV1(String email, Long postId, String password) {
+    Post post = postRepository.findById(postId)
+        .orElseThrow(() -> new CommunityException(COMMUNITY_POST_INVALID));
+    // 멤버요청일 경우 글작성자가 맞는지 확인
+    if (email != null) {
+      if (post.checkMember(email)) {
+        replyRepository.deleteByPost(post);
+        postRepository.delete(post);
+        return;
+      }
+      throw new CommunityException(COMMUNITY_PERMISSION_INVALID);
+    }
+
+    // 등록된 유저가 아닐 경우
+    // 게시물에 비밀번호가없다? > 유저가쓴글 > 권한없음
+    // @Validated
+    //    if (password == null || password.trim().isEmpty()) {
+    //      throw new CommunityException(COMMUNITY_PERMISSION_INVALID);
+    //    }
+    if (postCheckPasswordV1(post, null, password)) {
+      replyRepository.deleteByPost(post);
+      postRepository.delete(post);
+      return;
+    }
+    throw new CommunityException(COMMUNITY_PASSWORD_INVALID);
+  }
+
+  public IdResponseDto replyCreateV1(String email, Long postId,
+      ReplyCreateRequestDto replyCreateRequestDto) {
+    Post post = postRepository.findById(postId)
+        .orElseThrow(() -> new CommunityException(COMMUNITY_POST_INVALID));
+
+    Member member = null;
+    if (!email.isEmpty()) {
+      member = memberRepository.findByEmail(email)
+          .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
+      // @validated
+//      if (replyCreateRequestDto.getNickname().length() < 2) {
+//        throw new CommunityException("COMMUNITY:UNAVAILABLE_USER_NAME");
+//      }
+    }
+
+    String password =
+        (member == null) ? passwordEncoder.encode(replyCreateRequestDto.getPassword()) : null;
+    Reply reply = post.createReply(replyCreateRequestDto, password, member);
+    replyRepository.save(reply);
+    postRepository.save(post);
+
+    return reply.buildIdResponseDto();
+    // 이 부분은 @Validated 로 구현 -> 내용이 비어있을때
+    // throw new CommunityException("COMMUNITY:REPLY_CREATE_FAIL");
+  }
+
+  public boolean replyCheckPasswordV1(Reply reply, Long replyId, String password) {
+    if (reply == null) {
+      reply = replyRepository.findById(replyId)
+          .orElseThrow(() -> new CommunityException(COMMUNITY_REPLY_INVALID));
+    }
+    return reply.checkPassword(passwordEncoder, password);
+  }
+
+  public void replyUpdateV1(String email, Long replyId,
+      ReplyUpdateRequestDto replyUpdateRequestDto) {
+    Reply reply = replyRepository.findById(replyId)
+        .orElseThrow(() -> new CommunityException(COMMUNITY_REPLY_INVALID));
+    // 멤버요청일 경우 댓글작성자가 맞는지 확인
+    if (email != null) {
+      if (reply.checkMember(email)) {
+        reply.editReply(replyUpdateRequestDto);
+        replyRepository.save(reply);
+        return;
+      }
+      throw new CommunityException(COMMUNITY_PERMISSION_INVALID);
+    }
+
+    // 등록된 유저가 아닐 경우
+    if (replyCheckPasswordV1(reply, null, replyUpdateRequestDto.getPassword())) {
+      reply.editReply(replyUpdateRequestDto);
+      replyRepository.save(reply);
+      return;
+    }
+    throw new CommunityException(COMMUNITY_PASSWORD_INVALID);
+  }
+
+  public void replyDeleteV1(String email, Long replyId, String password) {
+    Reply reply = replyRepository.findById(replyId)
+        .orElseThrow(() -> new CommunityException(COMMUNITY_REPLY_INVALID));
+
+    // 멤버요청일 경우 댓글작성자가 맞는지 확인
+    if (email != null) {
+      if (reply.checkMember(email)) {
+        reply.deleteReply();
+        replyRepository.delete(reply);
+        return;
+      }
+      throw new CommunityException(COMMUNITY_PERMISSION_INVALID);
+    }
+
+    // 등록된 유저가 아닐 경우
+    if (replyCheckPasswordV1(reply, null, password)) {
+      reply.deleteReply();
+      replyRepository.delete(reply);
+    }
+    throw new CommunityException(COMMUNITY_PASSWORD_INVALID);
+  }
+
+
+  // TODO
+  // 아래는 validated 로 대체
   private void validatePageInput(Integer page, Integer pageSize) {
     if (page == null || page < 1 || pageSize == null || pageSize < 1) {
       // 1보다 작거나 없는 경우 에러 리턴
-      throw new CommunityException(pageInvalid);
+      throw new CommunityException(COMMUNITY_PAGE_INVALID);
     }
-
   }
 
   private void validatePage(Integer page, Page<?> pageList) {
     if ((page - 1 > pageList.getTotalPages() && !pageList.isEmpty())
         || (page > 1 && pageList.isEmpty())) {
       // 초과 에러 리턴
-      throw new CommunityException(pageInvalid);
-    }
-  }
-
-  public CommunityListResponseDto communityListV1(Integer page, Integer pageSize) {
-    validatePageInput(page, pageSize);
-    Pageable pageable = PageRequest.of(page - 1, pageSize);
-    Page<Community> communityList = communityRepository.findAll(pageable);
-    List<CommunityDto> communityDtos = communityList.stream()
-        .map(CommunityDto::of).toList();
-
-    validatePage(page, communityList);
-    try {
-      return CommunityListResponseDto.of(communityDtos, communityList, pageSize);
-    } catch (Exception e) {
-      throw new CommunityException("COMMUNITY:COMMUNITY_LIST_FAIL");
-    }
-  }
-
-  public CommunityDto communityDetailV1(Long communityId) {
-    Community community = communityRepository.findById(communityId)
-        .orElseThrow(() -> new CommunityException(communityInvalid));
-    try {
-      return CommunityDto.of(community);
-    } catch (Exception e) {
-      throw new CommunityException("COMMUNITY:COMMUNITY_DETAIL_FAIL");
-    }
-  }
-
-  public PostListResponseDto postListV1(Long communityId, Integer page, Integer pageSize) {
-    validatePageInput(page, pageSize);
-    Community community = communityRepository.findById(communityId)
-        .orElseThrow(() -> new CommunityException(communityInvalid));
-
-    Pageable pageable = PageRequest.of(page - 1, pageSize, Sort.by(Sort.Direction.DESC, "id"));
-    Page<Post> postPage = postRepository.findByCommunity(community, pageable);
-    validatePage(page, postPage);
-    List<PostDto> postDtoList = postPage.stream()
-        .map(post -> {
-          List<Reply> replyList = replyRepository.findListByPostIn(List.of(post));
-          int replyCount = replyList.size();
-          return PostDto.of(post, replyCount);
-        })
-        .toList();
-
-    try {
-      return PostListResponseDto.of(postDtoList, postPage, pageSize);
-    } catch (Exception e) {
-      throw new CommunityException("COMMUNITY:POST_LIST_FAIL");
-    }
-  }
-
-  public PostDetailResponseDto postDetailV1(Long postId) {
-    Post post = postRepository.findById(postId)
-        .orElseThrow(() -> new CommunityException(postInvalid));
-    Long previousPostId = null;
-    Long nextPostId = null;
-    Post previousPost = postRepository.findTopByCommunityIdAndIdLessThanOrderByIdDesc(
-        post.getCommunity().getId(), postId).orElse(null);
-    if (previousPost != null) {
-      previousPostId = previousPost.getId();
-    }
-    Post nextPost = postRepository.findTopByCommunityIdAndIdGreaterThanOrderByIdAsc(
-        post.getCommunity().getId(), postId).orElse(null);
-    if (nextPost != null) {
-      nextPostId = nextPost.getId();
-    }
-
-    List<Reply> reply = replyRepository.findListByPost(post);
-    int count = reply.size();
-    try {
-      return PostDetailResponseDto.of(post, count, previousPostId, nextPostId);
-    } catch (Exception e) {
-      throw new CommunityException("COMMUNITY:POST_DETAIL_FAIL");
-    }
-  }
-
-  public PostReplyResponseDto postReplyV1(Long postId, Integer page, Integer pageSize) {
-    validatePageInput(page, pageSize);
-    Post post = postRepository.findById(postId)
-        .orElseThrow(() -> new CommunityException(postInvalid));
-    Pageable pageable = PageRequest.of(page - 1, pageSize);
-    Page<Reply> replyPage = replyRepository.findPageByPost(post, pageable);
-
-    validatePage(page, replyPage);
-    try {
-      List<ReplyDto> replyDtoList = replyPage.stream().map(ReplyDto::of).toList();
-      return PostReplyResponseDto.of(replyDtoList, replyPage, pageSize);
-    } catch (Exception e) {
-      throw new CommunityException("COMMUNITY:POST_REPLY_FAIL");
-    }
-  }
-
-  public IdResponseDto postCreateV1(String email, Long communityId,
-      PostCreateRequestDto postCreateRequestDto) {
-    Community community = communityRepository.findById(communityId)
-        .orElseThrow(() -> new CommunityException(communityInvalid));
-
-    Post post = new Post();
-    post.setTitle(postCreateRequestDto.getTitle());
-    post.setContent(postCreateRequestDto.getContent());
-    // 유저일때만 email저장 아니면 code만 저장
-    if (email.isEmpty()) {
-      if (postCreateRequestDto.getNickname().length() < 2) {
-        throw new CommunityException("COMMUNITY:UNAVAILABLE_USER_NAME");
-      }
-      post.setNickname(postCreateRequestDto.getNickname());
-      post.setPassword(passwordEncoder.encode(postCreateRequestDto.getPassword()));
-    } else {
-      Member member = memberRepository.findByEmail(email)
-          .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
-      post.setMember(member);
-      post.setNickname(member.getNickname());
-    }
-    try {
-      Calendar calendar = Calendar.getInstance();
-      Date currentDate = calendar.getTime();
-      post.setCreationTime(currentDate);
-      post.setModificationTime(currentDate);
-      post.setCommunity(community);
-      postRepository.save(post);
-
-      return IdResponseDto.builder()
-          .id(post.getId())
-          .build();
-    } catch (Exception e) {
-      throw new CommunityException("COMMUNITY:POST_CREATE_FAIL");
-    }
-  }
-
-  public boolean postCheckPasswordV1(Long postId, String password) {
-    Post post = postRepository.findById(postId)
-        .orElseThrow(() -> new CommunityException(postInvalid));
-    if (post.getPassword() == null) {
-      return false;
-    } else {
-      return passwordEncoder.matches(password, post.getPassword());
-    }
-  }
-
-  public void postUpdateV1(String email, Long postId, PostUpdateRequestDto postUpdateRequestDto) {
-    Post post = postRepository.findById(postId)
-        .orElseThrow(() -> new CommunityException(postInvalid));
-    // 등록된 유저가 아닐 경우
-    if (email.isEmpty()) {
-      // 게시물에 비밀번호가없다? > 유저가쓴글 > 권한없음
-      if (postUpdateRequestDto.getPassword() == null || postUpdateRequestDto.getPassword().trim()
-          .isEmpty()) {
-        throw new CommunityException(permissionInvalid);
-      }
-      if (passwordEncoder.matches(postUpdateRequestDto.getPassword(), post.getPassword())) {
-        try {
-          post.setTitle(postUpdateRequestDto.getTitle());
-          post.setContent(postUpdateRequestDto.getContent());
-
-          Calendar calendar = Calendar.getInstance();
-          Date currentDate = calendar.getTime();
-          post.setModificationTime(currentDate);
-          postRepository.save(post);
-          return;
-        } catch (Exception e) {
-          throw new CommunityException("COMMUNITY:POST_UPDATE_FAIL");
-        }
-      } else {
-        throw new CommunityException(passwordInvalid);
-      }
-    }
-    // 유저일 경우
-    if ((post.getMember() == null) || (!Objects.equals(post.getMember().getEmail(), email))) {
-      throw new CommunityException(permissionInvalid);
-    } else {
-      try {
-        post.setTitle(postUpdateRequestDto.getTitle());
-        post.setContent(postUpdateRequestDto.getContent());
-
-        Calendar calendar = Calendar.getInstance();
-        Date currentDate = calendar.getTime();
-        post.setModificationTime(currentDate);
-        postRepository.save(post);
-      } catch (Exception e) {
-        throw new CommunityException("COMMUNITY:POST_UPDATE_FAIL");
-      }
-    }
-  }
-
-  public void postDeleteV1(String email, Long postId, String password) {
-    Post post = postRepository.findById(postId)
-        .orElseThrow(() -> new CommunityException(postInvalid));
-    // 등록된 유저가 아닐 경우
-    if (email.isEmpty()) {
-      // 게시물에 비밀번호가없다? > 유저가쓴글 > 권한없음
-      if (password == null || password.trim().isEmpty()) {
-        throw new CommunityException(permissionInvalid);
-      }
-      if (passwordEncoder.matches(password, post.getPassword())) {
-        try {
-          replyRepository.deleteByPost(post);
-          postRepository.delete(post);
-          return;
-        } catch (Exception e) {
-          throw new CommunityException("COMMUNITY:POST_DELETE_FAIL");
-        }
-      } else {
-        throw new CommunityException(passwordInvalid);
-      }
-    }
-    // 유저일 경우
-    if ((post.getMember() == null) || (!Objects.equals(post.getMember().getEmail(), email))) {
-      throw new CommunityException(permissionInvalid);
-    } else {
-      try {
-        replyRepository.deleteByPost(post);
-        postRepository.delete(post);
-      } catch (Exception e) {
-        throw new CommunityException("COMMUNITY:POST_DELETE_FAIL");
-      }
-    }
-  }
-
-  public IdResponseDto replyCreateV1(String email, Long postId,
-      ReplyCreateRequestDto replyCreateRequestDto) {
-    Post post = postRepository.findById(postId)
-        .orElseThrow(() -> new CommunityException(postInvalid));
-    Reply reply = new Reply();
-    reply.setContent(replyCreateRequestDto.getContent());
-    if (email.isEmpty()) {
-      if (replyCreateRequestDto.getNickname().length() < 2) {
-        throw new CommunityException("COMMUNITY:UNAVAILABLE_USER_NAME");
-      }
-      reply.setNickname(replyCreateRequestDto.getNickname());
-      reply.setPassword(passwordEncoder.encode(replyCreateRequestDto.getPassword()));
-    } else {
-      Member member = memberRepository.findByEmail(email)
-          .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
-      reply.setMember(member);
-      reply.setNickname(member.getNickname());
-    }
-    try {
-      Calendar calendar = Calendar.getInstance();
-      Date currentDate = calendar.getTime();
-      reply.setCreationTime(currentDate);
-      reply.setModificationTime(currentDate);
-
-      reply.setCommunity(post.getCommunity());
-      reply.setPost(post);
-      replyRepository.save(reply);
-      postRepository.save(post);
-
-      return IdResponseDto.builder()
-          .id(reply.getId())
-          .build();
-    } catch (Exception e) {
-      throw new CommunityException("COMMUNITY:REPLY_CREATE_FAIL");
-    }
-  }
-
-  public boolean replyCheckPasswordV1(Long replyId, String password) {
-    Reply reply = replyRepository.findById(replyId)
-        .orElseThrow(() -> new CommunityException(replyInvalid));
-    if (reply.getPassword() == null) {
-      return false;
-    } else {
-      return passwordEncoder.matches(password, reply.getPassword());
-    }
-  }
-
-  public void replyUpdateV1(String email, Long replyId,
-      ReplyUpdateRequestDto replyUpdateRequestDto) {
-    Reply reply = replyRepository.findById(replyId)
-        .orElseThrow(() -> new CommunityException(replyInvalid));
-    // 등록된 유저가 아닐 경우
-    if (email.isEmpty()) {
-      // 게시물에 비밀번호가없다? > 유저가쓴글 > 권한없음
-      if (replyUpdateRequestDto.getPassword() == null || replyUpdateRequestDto.getPassword().trim()
-          .isEmpty()) {
-        throw new CommunityException(passwordInvalid);
-      }
-      // 이메일없는 유저요청 + 등록된 유저가 쓴글이 아닐때 > 비밀번호 검사
-      if (passwordEncoder.matches(replyUpdateRequestDto.getPassword(), reply.getPassword())) {
-        try {
-          reply.setContent(replyUpdateRequestDto.getContent());
-          Calendar calendar = Calendar.getInstance();
-          Date currentDate = calendar.getTime();
-          reply.setModificationTime(currentDate);
-          replyRepository.save(reply);
-          return;
-        } catch (Exception e) {
-          throw new CommunityException("COMMUNITY:REPLY_UPDATE_FAIL");
-        }
-      } else {
-        throw new CommunityException(passwordInvalid);
-      }
-    }
-    // 유저일 경우
-    if ((reply.getMember() == null) || (!Objects.equals(reply.getMember().getEmail(), email))) {
-      throw new CommunityException(permissionInvalid);
-    } else {
-      try {
-        reply.setContent(replyUpdateRequestDto.getContent());
-        Calendar calendar = Calendar.getInstance();
-        Date currentDate = calendar.getTime();
-        reply.setModificationTime(currentDate);
-        replyRepository.save(reply);
-      } catch (Exception e) {
-        throw new CommunityException("COMMUNITY:REPLY_UPDATE_FAIL");
-      }
-    }
-  }
-
-  public void replyDeleteV1(String email, Long replyId, String password) {
-    Reply reply = replyRepository.findById(replyId)
-        .orElseThrow(() -> new CommunityException(replyInvalid));
-    Post post = reply.getPost();
-    // 등록된 유저가 아닐 경우
-    if (email.isEmpty()) {
-      // 게시물에 비밀번호가없다? > 유저가쓴글 > 권한없음
-      if (password == null || password.trim().isEmpty()) {
-        throw new CommunityException(passwordInvalid);
-      }
-      if (passwordEncoder.matches(password, reply.getPassword())) {
-        try {
-          replyRepository.delete(reply);
-          postRepository.save(post);
-          return;
-        } catch (Exception e) {
-          throw new CommunityException("COMMUNITY:REPLY_DELETE_FAIL");
-        }
-      } else {
-        throw new CommunityException(passwordInvalid);
-      }
-    }
-    // 유저일 경우
-    if ((reply.getMember() == null) || (!Objects.equals(reply.getMember().getEmail(), email))) {
-      throw new CommunityException(permissionInvalid);
-    } else {
-      try {
-        replyRepository.delete(reply);
-        postRepository.save(post);
-      } catch (Exception e) {
-        throw new CommunityException("COMMUNITY:REPLY_DELETE_FAIL");
-      }
+      throw new CommunityException(COMMUNITY_PAGE_INVALID);
     }
   }
 }

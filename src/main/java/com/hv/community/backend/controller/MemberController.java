@@ -23,6 +23,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.User;
@@ -35,18 +36,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/member")
+@RequiredArgsConstructor
 public class MemberController {
 
   private final MemberService memberService;
   private final MailService mailService;
   private final TokenProvider tokenProvider;
-
-  public MemberController(MemberService memberService, MailService mailService,
-      TokenProvider tokenProvider) {
-    this.tokenProvider = tokenProvider;
-    this.memberService = memberService;
-    this.mailService = mailService;
-  }
 
   @PostMapping("/v1/signup")
   @Operation(responses = {
@@ -56,7 +51,6 @@ public class MemberController {
   public ResponseEntity<TokenDto> signupV1(@RequestBody SignupRequestDto signupRequestDto,
       Errors errors) {
     new SignupRequestDtoValidator().validate(signupRequestDto, errors);
-
     TokenDto tokenDto = memberService.checkEmailDuplicationV1(signupRequestDto);
     return ResponseEntity.ok(tokenDto);
   }
@@ -75,8 +69,7 @@ public class MemberController {
     String verificationCode = data.getVerificationCode();
 
     mailService.sendEmailV1(email, "이메일 인증 메일 입니다", verificationCode);
-    EmptyResponseDto emptyResponseDto = null;
-    return ResponseEntity.ok(emptyResponseDto);
+    return ResponseEntity.ok(null);
   }
 
   @PostMapping("/v1/email/activate")
@@ -87,8 +80,7 @@ public class MemberController {
   public ResponseEntity<EmptyResponseDto> emailActivateV1(
       @RequestBody EmailActivateRequestDto emailActivateRequestDto) {
     memberService.emailActivateV1(emailActivateRequestDto);
-    EmptyResponseDto emptyResponseDto = null;
-    return ResponseEntity.ok(emptyResponseDto);
+    return ResponseEntity.ok(null);
   }
 
   @PostMapping("/v1/signin")
@@ -129,7 +121,7 @@ public class MemberController {
           content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProfileResponseDto.class)))
   })
   public ResponseEntity<ProfileResponseDto> profileV1(@AuthenticationPrincipal User user) {
-    // accesstoken검사
+    // accesstoken 검사
     handleAuthorizationError(user);
     String email = getEmail(user);
 

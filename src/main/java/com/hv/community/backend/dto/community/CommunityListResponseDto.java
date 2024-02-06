@@ -2,16 +2,15 @@ package com.hv.community.backend.dto.community;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import com.hv.community.backend.domain.community.Community;
 import java.util.List;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.Setter;
-import org.springframework.data.domain.Page;
+import lombok.NoArgsConstructor;
 
 @Getter
-@Setter
 @Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class CommunityListResponseDto {
 
@@ -22,21 +21,14 @@ public class CommunityListResponseDto {
   private int pageSize;
   private List<CommunityDto> items;
 
-  public static CommunityListResponseDto of(List<CommunityDto> communityDtoList,
-      Page<Community> communityPage,
-      int pageSize) {
-    int currentPage = communityPage.getNumber() + 1;
-
-    Integer prev = (!communityPage.hasPrevious()) ? null : currentPage - 1;
-    Integer next = (!communityPage.hasNext()) ? null : currentPage + 1;
-
-    return CommunityListResponseDto.builder()
-        .next(next)
-        .prev(prev)
-        .totalPage(communityPage.getTotalPages())
-        .page(currentPage)
-        .pageSize(pageSize)
-        .items(communityDtoList)
-        .build();
+  @Builder
+  public CommunityListResponseDto(Integer next, Integer prev, int totalPage, int page, int pageSize,
+      List<CommunityDto> items) {
+    this.next = next;
+    this.prev = prev;
+    this.totalPage = totalPage;
+    this.page = page;
+    this.pageSize = pageSize;
+    this.items = items;
   }
 }

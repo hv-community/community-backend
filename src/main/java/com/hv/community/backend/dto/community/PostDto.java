@@ -2,25 +2,27 @@ package com.hv.community.backend.dto.community;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import com.hv.community.backend.domain.community.Post;
 import java.util.Date;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.Setter;
+import lombok.NoArgsConstructor;
+
 
 @Getter
-@Setter
 @Builder
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PostDto {
 
-  private final Long id;
-  private final String title;
-  private final int replyCount;
-  private final String nickname;
-  private final Date creationTime;
-  private final Date modificationTime;
+  private Long id;
+  private String title;
+  private int replyCount;
+  private String nickname;
+  private Date creationTime;
+  private Date modificationTime;
 
+  @Builder
   public PostDto(Long id, String title, int replyCount, String nickname, Date creationTime,
       Date modificationTime) {
     this.id = id;
@@ -29,16 +31,5 @@ public class PostDto {
     this.nickname = nickname;
     this.creationTime = creationTime;
     this.modificationTime = modificationTime;
-  }
-
-  public static PostDto of(Post post, int replyCount) {
-    return PostDto.builder()
-        .id(post.getId())
-        .title(post.getTitle())
-        .replyCount(replyCount)
-        .nickname(post.getMember() != null ? post.getMember().getNickname() : post.getNickname())
-        .creationTime(post.getCreationTime())
-        .modificationTime(post.getModificationTime())
-        .build();
   }
 }

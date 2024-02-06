@@ -21,6 +21,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.User;
@@ -35,14 +36,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/community")
+@RequiredArgsConstructor
 public class CommunityController {
 
   private final CommunityService communityService;
-  private static String passwordInvalid = "COMMUNITY:PASSWORD_INVALID";
-
-  public CommunityController(CommunityService communityService) {
-    this.communityService = communityService;
-  }
+  private static final String COMMUNITY_PASSWORD_INVALID = "COMMUNITY:PASSWORD_INVALID";
 
   @GetMapping("/v1/list")
   @ApiResponses(value = {
@@ -86,7 +84,6 @@ public class CommunityController {
       @RequestParam(defaultValue = "1") int page,
       @Parameter(name = "page_size", description = "Page size Parameter", example = "5", in = ParameterIn.QUERY)
       @RequestParam(defaultValue = "10", name = "page_size") int pageSize) {
-
     PostListResponseDto postListResponseDto = communityService.postListV1(communityId, page,
         pageSize);
     return ResponseEntity.ok(postListResponseDto);
@@ -122,8 +119,7 @@ public class CommunityController {
       @RequestParam(defaultValue = "1") int page,
       @Parameter(name = "page_size", description = "Page size Parameter", example = "5", in = ParameterIn.QUERY)
       @RequestParam(defaultValue = "10", name = "page_size") int pageSize) {
-    PostReplyResponseDto postReply = communityService.postReplyV1(postId, page,
-        pageSize);
+    PostReplyResponseDto postReply = communityService.postReplyV1(postId, page, pageSize);
     return ResponseEntity.ok(postReply);
   }
 
@@ -136,8 +132,8 @@ public class CommunityController {
       @Parameter(name = "community_id", description = "Community ID Parameter", example = "1", in = ParameterIn.PATH)
       @PathVariable("community_id") Long communityId,
       @RequestBody PostCreateRequestDto postCreateRequestDto) {
-    if (postCreateRequestDto.getTitle().trim().isEmpty() || postCreateRequestDto.getContent().trim()
-        .isEmpty()) {
+    if (postCreateRequestDto.getTitle().trim().isEmpty()
+        || postCreateRequestDto.getContent().trim().isEmpty()) {
       throw new CommunityException("COMMUNITY:EMPTY_TITLE_OR_CONTENT");
     }
     String email = getEmail(user);
@@ -160,14 +156,12 @@ public class CommunityController {
       @Parameter(name = "password", description = "Password Parameter", example = "1q2w3e4r!", in = ParameterIn.QUERY)
       @RequestParam String password) {
     if (password.trim().isEmpty()) {
-      throw new CommunityException(passwordInvalid);
+      throw new CommunityException(COMMUNITY_PASSWORD_INVALID);
     }
-    if (communityService.postCheckPasswordV1(postId, password)) {
-      EmptyResponseDto emptyResponseDto = null;
-      return ResponseEntity.ok(emptyResponseDto);
-    } else {
-      throw new CommunityException(passwordInvalid);
+    if (communityService.postCheckPasswordV1(null, postId, password)) {
+      return ResponseEntity.ok(null);
     }
+    throw new CommunityException(COMMUNITY_PASSWORD_INVALID);
   }
 
   @PostMapping("/v1/{community_id}/{post_id}/update")
@@ -181,15 +175,14 @@ public class CommunityController {
       @Parameter(name = "post_id", description = "Community ID Parameter", example = "1", in = ParameterIn.PATH)
       @PathVariable("post_id") Long postId,
       @RequestBody PostUpdateRequestDto postUpdateRequestDto) {
-    if (postUpdateRequestDto.getTitle().trim().isEmpty() || postUpdateRequestDto.getContent().trim()
-        .isEmpty()) {
+    if (postUpdateRequestDto.getTitle().trim().isEmpty()
+        || postUpdateRequestDto.getContent().trim().isEmpty()) {
       throw new CommunityException("COMMUNITY:EMPTY_TITLE_OR_CONTENT");
     }
     String email = getEmail(user);
 
     communityService.postUpdateV1(email, postId, postUpdateRequestDto);
-    EmptyResponseDto emptyResponseDto = null;
-    return ResponseEntity.ok(emptyResponseDto);
+    return ResponseEntity.ok(null);
   }
 
   @DeleteMapping("/v1/{community_id}/{post_id}/delete")
@@ -207,8 +200,7 @@ public class CommunityController {
     String email = getEmail(user);
 
     communityService.postDeleteV1(email, postId, password);
-    EmptyResponseDto emptyResponseDto = null;
-    return ResponseEntity.ok(emptyResponseDto);
+    return ResponseEntity.ok(null);
   }
 
   @PostMapping("/v1/{community_id}/{post_id}/create")
@@ -247,14 +239,12 @@ public class CommunityController {
       @Parameter(name = "password", description = "Password Parameter", example = "1q2w3e4r!", in = ParameterIn.QUERY)
       @RequestParam String password) {
     if (password.trim().isEmpty()) {
-      throw new CommunityException(passwordInvalid);
+      throw new CommunityException(COMMUNITY_PASSWORD_INVALID);
     }
-    if (communityService.replyCheckPasswordV1(replyId, password)) {
-      EmptyResponseDto emptyResponseDto = null;
-      return ResponseEntity.ok(emptyResponseDto);
-    } else {
-      throw new CommunityException(passwordInvalid);
+    if (communityService.replyCheckPasswordV1(null, replyId, password)) {
+      return ResponseEntity.ok(null);
     }
+    throw new CommunityException(COMMUNITY_PASSWORD_INVALID);
   }
 
   @PostMapping("/v1/{community_id}/{post_id}/{reply_id}/update")
@@ -276,8 +266,7 @@ public class CommunityController {
     String email = getEmail(user);
 
     communityService.replyUpdateV1(email, replyId, replyUpdateRequestDto);
-    EmptyResponseDto emptyResponseDto = null;
-    return ResponseEntity.ok(emptyResponseDto);
+    return ResponseEntity.ok(null);
   }
 
   @DeleteMapping("/v1/{community_id}/{post_id}/{reply_id}/delete")
@@ -297,8 +286,7 @@ public class CommunityController {
     String email = getEmail(user);
 
     communityService.replyDeleteV1(email, replyId, password);
-    EmptyResponseDto emptyResponseDto = null;
-    return ResponseEntity.ok(emptyResponseDto);
+    return ResponseEntity.ok(null);
   }
 
   private String getEmail(User user) {

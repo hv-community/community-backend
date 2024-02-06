@@ -20,8 +20,9 @@ import com.hv.community.backend.repository.member.RoleRepository;
 import com.hv.community.backend.service.mail.MailService;
 import java.security.SecureRandom;
 import java.util.Date;
-import java.util.Objects;
 import java.util.Random;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -34,7 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@Transactional
+@Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class MemberService {
 
   private final MemberRepository memberRepository;
@@ -45,103 +47,90 @@ public class MemberService {
   private final MailService mailService;
   private final RoleRepository roleRepository;
   private final MemberRoleRepository memberRoleRepository;
-  private static String unregistered = "MEMBER:MEMBER_UNREGISTERED";
+  private static final String MEMBER_UNREGISTERED = "MEMBER:MEMBER_UNREGISTERED";
 
-
-  public MemberService(MemberRepository memberRepository, MemberTempRepository memberTempRepository,
-      AuthenticationManagerBuilder authenticationManagerBuilder, TokenProvider tokenProvider,
-      PasswordEncoder passwordEncoder, MailService mailService, RoleRepository roleRepository,
-      MemberRoleRepository memberRoleRepository) {
-    this.memberRepository = memberRepository;
-    this.memberTempRepository = memberTempRepository;
-    this.authenticationManagerBuilder = authenticationManagerBuilder;
-    this.tokenProvider = tokenProvider;
-    this.passwordEncoder = passwordEncoder;
-    this.mailService = mailService;
-    this.roleRepository = roleRepository;
-    this.memberRoleRepository = memberRoleRepository;
-  }
-
-
+  // 중복체크 시작
   public TokenDto checkEmailDuplicationV1(SignupRequestDto signupRequestDto) {
-    // 해당 이메일이 존재하는경우
-    // 토큰값이 있는가?
-    // 토큰이 있다면 생성일로부터 24시간이 지났는가?
-    // 토큰생성으로 24시간이 지났다면 새로운 토큰을 만들고 새롭게 저장한다
-    // 토큰생성 24시간이 되지않았다면 중복 이메일 가입 요청으로 리턴시킴
-    Member isMember = memberRepository.findByEmail(signupRequestDto.getEmail()).orElse(null);
-    // 같은 이메일이 존재하는가?
-    if (isMember != null) {
-      // 이메일이 존재할때 토큰값이 비어있는가?
-      String token = isMember.getToken();
-      if (token == null) {
-        // 이미 인증완료된 유저
-        log.debug("중복 이메일 가입 요청, 요청 이메일: {}", signupRequestDto.getEmail());
-        throw new MemberException("MEMBER:MAIL_EXIST");
-      } else {
-        // 토큰값이 24시간이 지났는가?
-        Date storedTime = isMember.getRegisterDate();
-        Date currentTime = new Date();
-
-        long timeDifferenceMillis = currentTime.getTime() - storedTime.getTime();
-        long twentyFourHoursMillis = (long) 24 * 60 * 60 * 1000;
-        boolean is24HoursPassed = timeDifferenceMillis > twentyFourHoursMillis;
-        // 24시간 지났다면 해당유저 지우고 다시등록
-        if (is24HoursPassed) {
-          cleanUpUser(isMember);
-          return signupV1(signupRequestDto);
-        } else {
-          // 24시간동안 중복가입시도 금지
-          log.debug("중복 이메일 가입 요청, 요청 이메일: {}", signupRequestDto.getEmail());
-          throw new MemberException("MEMBER:MAIL_EXIST");
-        }
-      }
-      // 같은 이메일이 존재하지않을때는 닉네임 중복검사
-    } else if (memberRepository.existsByNickname(signupRequestDto.getNickname())) {
-      log.debug("중복 닉네임 가입 요청, 요청 닉네임: {}", signupRequestDto.getEmail());
-      throw new MemberException("MEMBER:NICKNAME_EXIST");
+    Member existingMember = memberRepository.findByEmail(signupRequestDto.getEmail()).orElse(null);
+    if (existingMember != null) {
+      // 이메일로 이미 가입된 유저가 있을때
+      return handleExistingMember(existingMember, signupRequestDto);
     } else {
-      return signupV1(signupRequestDto);
+      // 이메일로 이미 가입된 유저가 없을때
+      return handleSignUpMember(signupRequestDto);
     }
   }
 
-  @Transactional
-  public void cleanUpUser(Member member) {
+  private TokenDto handleExistingMember(Member existingMember, SignupRequestDto signupRequestDto) {
+    // 토큰값 확인
+    // 토큰값 비어있다 => 인증완료되어 이미 가입완료된 상태
+    if (existingMember.checkTokenNull()) {
+      log.debug("중복 이메일 가입 요청, 요청 이메일: {}", signupRequestDto.getEmail());
+      throw new MemberException("MEMBER:MAIL_EXIST");
+    }
+    // 토큰값 존재하는경우 => 아직 인증되지않은 상태
+    // 24시간이 지나서 토큰이 만료되었는지 확인
+    // 토큰이 만료된 경우 해당 유저를 지우고 재가입 로직 진행
+    if (existingMember.checkTokenExpired()) {
+      return handleTokenExpired(existingMember, signupRequestDto);
+    }
+    // 토큰이 만료되지 않은경우 중복가입시도 금지
+    log.debug("중복 이메일 가입 요청, 요청 이메일: {}", signupRequestDto.getEmail());
+    throw new MemberException("MEMBER:MAIL_EXIST");
+  }
+
+  private TokenDto handleTokenExpired(Member existingMember, SignupRequestDto signupRequestDto) {
     // 기존 유저 정보 삭제
-    memberTempRepository.delete(member.getMemberTemp());
-    memberRoleRepository.deleteByMember(member);
-    memberRepository.delete(member);
+    existingMember.cleanUpUser(memberTempRepository, memberRoleRepository, memberRepository);
     memberRepository.flush();
+    // 닉네임 중복조회 -> 가입절차 진행
+    return handleSignUpMember(signupRequestDto);
   }
 
-  private TokenDto signupV1(SignupRequestDto signupRequestDto) {
-    String token;
-    try {
-      Role role = new Role();
-      role.setRoleName("ROLE_NONE");
-      roleRepository.save(role);
-      Member member = new Member();
-      member.setEmail(signupRequestDto.getEmail());
-      member.setNickname(signupRequestDto.getNickname());
-      member.setPassword(passwordEncoder.encode(signupRequestDto.getPassword()));
-      member.setRegisterDate(new Date());
-      member.setEmailActivated(0);
-      // 토큰생성후 리턴
-      token = passwordEncoder.encode(
-          member.getEmail() + member.getNickname() + member.getRegisterDate());
-      member.setToken(token);
-      memberRepository.save(member);
-
-      // jwt role
-      MemberRole memberRole = new MemberRole();
-      memberRole.setMember(member);
-      memberRole.setRole(role);
-      memberRoleRepository.save(memberRole);
-    } catch (Exception e) {
-      throw new MemberException("MEMBER:SIGNUP_FAIL");
+  private TokenDto handleSignUpMember(SignupRequestDto signupRequestDto) {
+    // 이메일로 가입된 유저가 없을때
+    // 닉네임으로 조회
+    // 닉네임으로 가입된 유저가 있을때
+    if (memberRepository.existsByNickname(signupRequestDto.getNickname())) {
+      log.debug("중복 닉네임 가입 요청, 요청 닉네임: {}", signupRequestDto.getNickname());
+      throw new MemberException("MEMBER:NICKNAME_EXIST");
     }
+    // 이메일, 닉네임 중복없을때 실행
+    return signupV1(signupRequestDto);
+  }
+  // 중복체크 끝 -> 이후 가입로직 진행
 
-    // 이메일 활성화 코드 메일 발송
+  // 가입로직 시작
+  private TokenDto signupV1(SignupRequestDto signupRequestDto) {
+    Role role = Role.builder()
+        .roleName("ROLE_NONE")
+        .build();
+    roleRepository.save(role);
+
+    // email, nickname, registerDate 를 사용하여 토큰생성
+    String email = signupRequestDto.getEmail();
+    String nickname = signupRequestDto.getNickname();
+    String password = passwordEncoder.encode(signupRequestDto.getPassword());
+    Date registerDate = new Date();
+    String token = UUID.randomUUID().toString();
+
+    Member member = Member.builder()
+        .email(email)
+        .nickname(nickname)
+        .password(password)
+        .registerDate(registerDate)
+        .emailActivated(0)
+        .token(token)
+        .build();
+    memberRepository.save(member);
+
+    // jwt role
+    MemberRole memberRole = MemberRole.builder()
+        .member(member)
+        .role(role)
+        .build();
+    memberRoleRepository.save(memberRole);
+
     String verificationCode = createEmailVerificationCodeV1(token);
     mailService.sendEmailV1(signupRequestDto.getEmail(), "이메일 인증 코드입니다.", verificationCode);
     return TokenDto.builder()
@@ -149,51 +138,35 @@ public class MemberService {
         .build();
   }
 
+  private String createEmailVerificationCodeV1(String token) {
+    Member member = memberRepository.findByToken(token)
+        .orElseThrow(() -> new MemberException(MEMBER_UNREGISTERED));
+    String verificationCode = generateRandomNumericCodeV1();
+    MemberTemp memberTemp = MemberTemp.builder()
+        .token(token)
+        .code(verificationCode)
+        .member(member)
+        .build();
+    memberTempRepository.save(memberTemp);
+    return verificationCode;
+  }
 
-  private String generateRandomNumericCodeV1(int length) {
+  private String generateRandomNumericCodeV1() {
     Random random = new SecureRandom();
-    StringBuilder code = new StringBuilder(length);
-    for (int i = 0; i < length; i++) {
+    StringBuilder code = new StringBuilder(6);
+    for (int i = 0; i < 6; i++) {
       int digit = random.nextInt(10);
       code.append(digit);
     }
     return code.toString();
   }
+  // 가입로직 끝
 
-  public String createEmailVerificationCodeV1(String token) {
-    Member member = memberRepository.findByToken(token)
-        .orElseThrow(() -> new MemberException(unregistered));
-    try {
-      String verificationCode = generateRandomNumericCodeV1(6);
-      MemberTemp memberTemp = new MemberTemp();
-      memberTemp.setMember(member);
-      memberTemp.setToken(token);
-      memberTemp.setCode(verificationCode);
-      memberTempRepository.save(memberTemp);
-      return verificationCode;
-    } catch (Exception e) {
-      throw new MemberException("MEMBER:CREATE_EMAIL_VERIFICATION_CODE_FAIL");
-    }
-  }
-
+  // email resend
   public EmailVerificationCodeDto getEmailVerificationCodeV1(String token) {
     Member member = memberRepository.findByToken(token)
-        .orElseThrow(() -> new MemberException(unregistered));
-    try {
-      if (member == null || member.getMemberTemp() == null) {
-        assert member != null;
-        return EmailVerificationCodeDto.builder()
-            .email(member.getEmail())
-            .verificationCode(createEmailVerificationCodeV1(token))
-            .build();
-      }
-      return EmailVerificationCodeDto.builder()
-          .email(member.getEmail())
-          .verificationCode(member.getMemberTemp().getCode())
-          .build();
-    } catch (Exception e) {
-      throw new MemberException("MEMBER:GET_EMAIL_VERIFICATION_CODE_FAIL");
-    }
+        .orElseThrow(() -> new MemberException(MEMBER_UNREGISTERED));
+    return member.buildEmailVerificationCodeDto();
   }
 
   public void emailActivateV1(EmailActivateRequestDto emailActivateRequestDto) {
@@ -201,26 +174,14 @@ public class MemberService {
     String verificationCode = emailActivateRequestDto.getVerificationCode();
 
     Member member = memberRepository.findByToken(token)
-        .orElseThrow(() -> new MemberException(unregistered));
-    try {
-      if (Objects.equals(verificationCode, member.getMemberTemp().getCode())) {
-        member.setEmailActivated(1);
-        member.setToken(null);
-        memberRepository.save(member);
-        memberTempRepository.delete(member.getMemberTemp());
-      } else {
-        throw new MemberException("MEMBER:ACTIVATE_EMAIL_FAIL");
-      }
-    } catch (Exception e) {
-      throw new MemberException("MEMBER:ACTIVATE_EMAIL_FAIL");
-    }
+        .orElseThrow(() -> new MemberException(MEMBER_UNREGISTERED));
+    member.emailActivate(verificationCode, memberRepository, memberTempRepository);
   }
 
-  @Transactional(readOnly = true)
   public JwtTokenDto signinV1(String email, String password) {
     Member member = memberRepository.findByEmail(email)
-        .orElseThrow(() -> new MemberException(unregistered));
-    if (member.getEmailActivated() == 1) {
+        .orElseThrow(() -> new MemberException(MEMBER_UNREGISTERED));
+    if (member.checkEmailActivated()) {
       try {
         // 1. Login Email, Password 로 AuthenticationToken 생성
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
@@ -245,15 +206,7 @@ public class MemberService {
 
   public ProfileResponseDto profileV1(String email) {
     Member member = memberRepository.findByEmail(email)
-        .orElseThrow(() -> new MemberException(unregistered));
-    try {
-      return ProfileResponseDto.builder()
-          .id(String.valueOf(member.getId()))
-          .email(member.getEmail())
-          .nickname(member.getNickname())
-          .build();
-    } catch (Exception e) {
-      throw new MemberException("MEMBER:GET_MY_PROFILE_ERROR");
-    }
+        .orElseThrow(() -> new MemberException(MEMBER_UNREGISTERED));
+    return member.buildProfileResponseDto();
   }
 }

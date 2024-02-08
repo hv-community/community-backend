@@ -143,7 +143,7 @@ public class CommunityService {
         .orElseThrow(() -> new CommunityException(COMMUNITY_COMMUNITY_INVALID));
 
     Member member = null;
-    if (!email.isEmpty()) {
+    if (email != null) {
       member = memberRepository.findByEmail(email)
           .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
     }
@@ -217,7 +217,7 @@ public class CommunityService {
         .orElseThrow(() -> new CommunityException(COMMUNITY_POST_INVALID));
 
     Member member = null;
-    if (!email.isEmpty()) {
+    if (email != null) {
       member = memberRepository.findByEmail(email)
           .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
     }
@@ -279,6 +279,7 @@ public class CommunityService {
     if (replyCheckPasswordV1(reply, null, password)) {
       reply.deleteReply();
       replyRepository.delete(reply);
+      return;
     }
     throw new CommunityException(COMMUNITY_PASSWORD_INVALID);
   }

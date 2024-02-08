@@ -384,7 +384,7 @@ public class CommunityController {
 
   private String getEmail(User user) {
     if (user == null) {
-      return "";
+      return null;
     }
     return user.getUsername();
   }

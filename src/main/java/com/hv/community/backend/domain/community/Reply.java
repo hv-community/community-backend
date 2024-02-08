@@ -20,8 +20,10 @@ import java.util.Date;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+@Slf4j
 @Entity
 @Table(name = "reply")
 @Builder
@@ -90,7 +92,7 @@ public class Reply {
     if (this.password == null) {
       throw new CommunityException(COMMUNITY_PERMISSION_INVALID);
     }
-    return passwordEncoder.matches(this.password, password);
+    return passwordEncoder.matches(password, this.password);
   }
 
   public boolean checkMember(String email) {

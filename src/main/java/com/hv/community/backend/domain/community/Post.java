@@ -107,7 +107,7 @@ public class Post {
     if (this.password == null) {
       throw new CommunityException(COMMUNITY_PERMISSION_INVALID);
     }
-    return passwordEncoder.matches(this.password, password);
+    return passwordEncoder.matches(password, this.password);
   }
 
   public PostDetailResponseDto buildPostDetailResponseDto(Long previousPostId,

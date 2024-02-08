@@ -127,7 +127,7 @@ public class Post {
   }
 
   public boolean checkMember(String email) {
-    return this.member.checkMember(email);
+    return this.member != null && this.member.checkMember(email);
   }
 
   public void editPost(PostUpdateRequestDto postUpdateRequestDto) {
@@ -146,10 +146,16 @@ public class Post {
   }
 
   public Long findPreviousPostId(PostRepository postRepository) {
+    if (this.community.findPreviousPost(postRepository, this.id) == null) {
+      return null;
+    }
     return this.community.findPreviousPost(postRepository, this.id).id;
   }
 
   public Long findNextPostId(PostRepository postRepository) {
+    if (this.community.findNextPost(postRepository, this.id) == null) {
+      return null;
+    }
     return this.community.findNextPost(postRepository, this.id).id;
   }
 

@@ -122,7 +122,9 @@ public class TokenProvider implements InitializingBean {
 
   // JwtFilter-doFilterInternal에서 OncePerRequestFilter를 통해 요청들어올때 마다 검사
   // header에 jwt가 있을때 jwt값 검증
-  // 에러를 TokenValidExceptionHandlerFilter로 넘겨줌
+  // 에러 발생 -> 두 종류 토큰문제, 권한문제
+  // 토큰문제인경우 JwtFilter -> JwtAuthenticationEntryPoint
+  // 권한문제인경우 JwtFilter -> JwtAccessDeniedHandler
   public boolean validateToken(String token) {
     try {
       Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
@@ -141,5 +143,4 @@ public class TokenProvider implements InitializingBean {
       return false;
     }
   }
-
 }

@@ -1,11 +1,10 @@
 package com.hv.community.backend.config;
 
-
 import com.hv.community.backend.jwt.JwtAccessDeniedHandler;
 import com.hv.community.backend.jwt.JwtAuthenticationEntryPoint;
 import com.hv.community.backend.jwt.JwtFilter;
 import com.hv.community.backend.jwt.TokenProvider;
-import com.hv.community.backend.jwt.TokenValidExceptionHandlerFilter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -23,23 +22,12 @@ import org.springframework.web.cors.CorsUtils;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
   private final TokenProvider tokenProvider;
   private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
   private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
-  private final TokenValidExceptionHandlerFilter tokenValidExceptionHandlerFilter;
-
-
-  public SecurityConfig(TokenProvider tokenProvider,
-      JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
-      JwtAccessDeniedHandler jwtAccessDeniedHandler,
-      TokenValidExceptionHandlerFilter tokenValidExceptionHandlerFilter) {
-    this.tokenProvider = tokenProvider;
-    this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
-    this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
-    this.tokenValidExceptionHandlerFilter = tokenValidExceptionHandlerFilter;
-  }
 
   // 필터를 거치지 않고 html, js, css 파일 접근 허용
   @Bean
@@ -66,12 +54,9 @@ public class SecurityConfig {
         .authorizeHttpRequests(
             authorize -> authorize
                 .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
-                .requestMatchers("/member/*").permitAll()
                 .requestMatchers("/**").permitAll())
         // JwtFilter 보안 설정 적용
-        .addFilterBefore(new JwtFilter(tokenProvider), UsernamePasswordAuthenticationFilter.class)
-        // JwtToken 예외 핸들러 적용
-        .addFilterBefore(tokenValidExceptionHandlerFilter, JwtFilter.class);
+        .addFilterBefore(new JwtFilter(tokenProvider), UsernamePasswordAuthenticationFilter.class);
     return httpSecurity.build();
   }
 

@@ -61,6 +61,7 @@ public class Community {
           .creationTime(currentDate)
           .modificationTime(currentDate)
           .content(postCreateRequestDto.getContent())
+          .replyCount(0)
           .nickname(postCreateRequestDto.getNickname())
           .password(password)
           .community(this)

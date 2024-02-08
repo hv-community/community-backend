@@ -7,9 +7,8 @@ import io.sentry.protocol.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
@@ -18,27 +17,22 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
+@RequiredArgsConstructor
 public class JwtAccessDeniedHandler implements AccessDeniedHandler {
 
-  private final Logger logger = LoggerFactory.getLogger(JwtAccessDeniedHandler.class);
-
   private final ObjectMapper objectMapper;
-
-  @Autowired
-  public JwtAccessDeniedHandler(ObjectMapper objectMapper) {
-    this.objectMapper = objectMapper;
-  }
 
   @Override
   public void handle(HttpServletRequest request, HttpServletResponse response,
       AccessDeniedException accessDeniedException) throws IOException {
-    logger.debug("JwtAccessDeniedHandler 발생");
+    log.debug("JwtAccessDeniedHandler 발생");
     response.setStatus(HttpStatus.FORBIDDEN.value());
     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
     response.setCharacterEncoding("UTF-8");
     objectMapper.writeValue(response.getWriter(),
-        ErrorResponseDto.of("ACCESS:FORBIDDEN_ACCESS", "허가되지 않은 접근입니다"));
+        ErrorResponseDto.build("ACCESS:FORBIDDEN_ACCESS", "허가되지 않은 접근입니다"));
     configureSentryScope("ACCESS:FORBIDDEN_ACCESS", request);
   }
 

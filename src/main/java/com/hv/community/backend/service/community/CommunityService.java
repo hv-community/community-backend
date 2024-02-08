@@ -35,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@Transactional(readOnly = true)
+@Transactional
 @RequiredArgsConstructor
 public class CommunityService {
 
@@ -46,14 +46,13 @@ public class CommunityService {
   private final PasswordEncoder passwordEncoder;
 
   private static final String COMMUNITY_PAGE_INVALID = "COMMUNITY:PAGE_INVALID";
+  private static final String COMMUNITY_COMMUNITY_INVALID = "COMMUNITY:COMMUNITY_INVALID";
   private static final String COMMUNITY_POST_INVALID = "COMMUNITY:POST_INVALID";
   private static final String COMMUNITY_REPLY_INVALID = "COMMUNITY:REPLY_INVALID";
   private static final String COMMUNITY_PASSWORD_INVALID = "COMMUNITY:PASSWORD_INVALID";
   private static final String COMMUNITY_PERMISSION_INVALID = "COMMUNITY:PERMISSION_INVALID";
-  private static final String COMMUNITY_COMMUNITY_INVALID = "COMMUNITY:COMMUNITY_INVALID";
 
   public CommunityListResponseDto communityListV1(Integer page, Integer pageSize) {
-    validatePageInput(page, pageSize);
     Pageable pageable = PageRequest.of(page - 1, pageSize);
 
     Page<Community> communityPage = communityRepository.findAll(pageable);
@@ -83,7 +82,6 @@ public class CommunityService {
   }
 
   public PostListResponseDto postListV1(Long communityId, Integer page, Integer pageSize) {
-    validatePageInput(page, pageSize);
     Community community = communityRepository.findById(communityId)
         .orElseThrow(() -> new CommunityException(COMMUNITY_COMMUNITY_INVALID));
 
@@ -117,7 +115,6 @@ public class CommunityService {
   }
 
   public PostReplyResponseDto postReplyV1(Long postId, Integer page, Integer pageSize) {
-    validatePageInput(page, pageSize);
     Post post = postRepository.findById(postId)
         .orElseThrow(() -> new CommunityException(COMMUNITY_POST_INVALID));
     Pageable pageable = PageRequest.of(page - 1, pageSize);
@@ -156,8 +153,6 @@ public class CommunityService {
 
     postRepository.save(post);
     return post.buildIdResponseDto();
-    // 이 부분은 @Validated 로 구현 -> 제목 내용등이 비어있을때
-    // throw new CommunityException("COMMUNITY:POST_CREATE_FAIL");
   }
 
   public boolean postCheckPasswordV1(Post post, Long postId, String password) {
@@ -166,7 +161,6 @@ public class CommunityService {
       post = postRepository.findById(postId)
           .orElseThrow(() -> new CommunityException(COMMUNITY_POST_INVALID));
     }
-    // password validated
     return post.checkPassword(passwordEncoder, password);
   }
 
@@ -209,10 +203,6 @@ public class CommunityService {
 
     // 등록된 유저가 아닐 경우
     // 게시물에 비밀번호가없다? > 유저가쓴글 > 권한없음
-    // @Validated
-    //    if (password == null || password.trim().isEmpty()) {
-    //      throw new CommunityException(COMMUNITY_PERMISSION_INVALID);
-    //    }
     if (postCheckPasswordV1(post, null, password)) {
       replyRepository.deleteByPost(post);
       postRepository.delete(post);
@@ -230,10 +220,6 @@ public class CommunityService {
     if (!email.isEmpty()) {
       member = memberRepository.findByEmail(email)
           .orElseThrow(() -> new MemberException("MEMBER:MEMBER_UNREGISTERED"));
-      // @validated
-//      if (replyCreateRequestDto.getNickname().length() < 2) {
-//        throw new CommunityException("COMMUNITY:UNAVAILABLE_USER_NAME");
-//      }
     }
 
     String password =
@@ -243,8 +229,6 @@ public class CommunityService {
     postRepository.save(post);
 
     return reply.buildIdResponseDto();
-    // 이 부분은 @Validated 로 구현 -> 내용이 비어있을때
-    // throw new CommunityException("COMMUNITY:REPLY_CREATE_FAIL");
   }
 
   public boolean replyCheckPasswordV1(Reply reply, Long replyId, String password) {
@@ -281,7 +265,6 @@ public class CommunityService {
   public void replyDeleteV1(String email, Long replyId, String password) {
     Reply reply = replyRepository.findById(replyId)
         .orElseThrow(() -> new CommunityException(COMMUNITY_REPLY_INVALID));
-
     // 멤버요청일 경우 댓글작성자가 맞는지 확인
     if (email != null) {
       if (reply.checkMember(email)) {
@@ -298,16 +281,6 @@ public class CommunityService {
       replyRepository.delete(reply);
     }
     throw new CommunityException(COMMUNITY_PASSWORD_INVALID);
-  }
-
-
-  // TODO
-  // 아래는 validated 로 대체
-  private void validatePageInput(Integer page, Integer pageSize) {
-    if (page == null || page < 1 || pageSize == null || pageSize < 1) {
-      // 1보다 작거나 없는 경우 에러 리턴
-      throw new CommunityException(COMMUNITY_PAGE_INVALID);
-    }
   }
 
   private void validatePage(Integer page, Page<?> pageList) {

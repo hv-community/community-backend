@@ -11,9 +11,7 @@ import com.hv.community.backend.dto.member.EmailVerificationCodeDto;
 import com.hv.community.backend.dto.member.ProfileResponseDto;
 import com.hv.community.backend.dto.member.RefreshRequestDto;
 import com.hv.community.backend.dto.member.SigninRequestDto;
-import com.hv.community.backend.dto.member.SigninRequestDtoValidator;
 import com.hv.community.backend.dto.member.SignupRequestDto;
-import com.hv.community.backend.dto.member.SignupRequestDtoValidator;
 import com.hv.community.backend.exception.MemberException;
 import com.hv.community.backend.jwt.TokenProvider;
 import com.hv.community.backend.service.mail.MailService;
@@ -23,11 +21,11 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.User;
-import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -44,24 +42,22 @@ public class MemberController {
   private final TokenProvider tokenProvider;
 
   @PostMapping("/v1/signup")
-  @Operation(responses = {
+  @Operation(summary = "Sign up", responses = {
       @ApiResponse(description = "Success", responseCode = "200",
           content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenDto.class)))
   })
-  public ResponseEntity<TokenDto> signupV1(@RequestBody SignupRequestDto signupRequestDto,
-      Errors errors) {
-    new SignupRequestDtoValidator().validate(signupRequestDto, errors);
+  public ResponseEntity<TokenDto> signupV1(@RequestBody @Valid SignupRequestDto signupRequestDto) {
     TokenDto tokenDto = memberService.checkEmailDuplicationV1(signupRequestDto);
     return ResponseEntity.ok(tokenDto);
   }
 
   @PostMapping("/v1/email/send")
-  @Operation(responses = {
+  @Operation(summary = "Email Send", responses = {
       @ApiResponse(description = "Success", responseCode = "200",
           content = @Content(mediaType = "application/json", schema = @Schema(implementation = EmptyResponseDto.class)))
   })
-  public ResponseEntity<EmptyResponseDto> emailSendV1(@RequestBody
-  EmailSendRequestDto emailSendRequestDto) {
+  public ResponseEntity<EmptyResponseDto> emailSendV1(
+      @RequestBody @Valid EmailSendRequestDto emailSendRequestDto) {
     String token = emailSendRequestDto.getToken();
 
     EmailVerificationCodeDto data = memberService.getEmailVerificationCodeV1(token);
@@ -73,38 +69,36 @@ public class MemberController {
   }
 
   @PostMapping("/v1/email/activate")
-  @Operation(responses = {
+  @Operation(summary = "Email Activate", responses = {
       @ApiResponse(description = "Success", responseCode = "200",
           content = @Content(mediaType = "application/json", schema = @Schema(implementation = EmptyResponseDto.class)))
   })
   public ResponseEntity<EmptyResponseDto> emailActivateV1(
-      @RequestBody EmailActivateRequestDto emailActivateRequestDto) {
+      @RequestBody @Valid EmailActivateRequestDto emailActivateRequestDto) {
     memberService.emailActivateV1(emailActivateRequestDto);
     return ResponseEntity.ok(null);
   }
 
   @PostMapping("/v1/signin")
-  @Operation(responses = {
+  @Operation(summary = "Sign in", responses = {
       @ApiResponse(description = "Success", responseCode = "200",
           content = @Content(mediaType = "application/json", schema = @Schema(implementation = JwtTokenDto.class)))
   })
   public ResponseEntity<JwtTokenDto> signinV1(
-      @RequestBody SigninRequestDto signinRequestDto,
-      Errors errors) {
-    new SigninRequestDtoValidator().validate(signinRequestDto, errors);
-
+      @RequestBody @Valid SigninRequestDto signinRequestDto) {
     JwtTokenDto jwtTokenDto = memberService.signinV1(signinRequestDto.getEmail(),
         signinRequestDto.getPassword());
     return ResponseEntity.ok(jwtTokenDto);
   }
 
   @PostMapping("/v1/refresh")
-  @Operation(security = {@SecurityRequirement(name = "bearer-key")}, responses = {
+  @Operation(summary = "Refresh Access Token", security = {
+      @SecurityRequirement(name = "bearer-key")}, responses = {
       @ApiResponse(description = "Success", responseCode = "200",
           content = @Content(mediaType = "application/json", schema = @Schema(implementation = AccessTokenDto.class)))
   })
   public ResponseEntity<AccessTokenDto> refreshV1(
-      @RequestBody RefreshRequestDto refreshRequestDto) {
+      @RequestBody @Valid RefreshRequestDto refreshRequestDto) {
     // refresh token 유효성 검사
     String refreshToken = refreshRequestDto.getRefreshToken();
     if (!tokenProvider.validateToken(refreshToken)) {
@@ -116,7 +110,8 @@ public class MemberController {
   }
 
   @GetMapping("/v1/profile")
-  @Operation(security = {@SecurityRequirement(name = "bearer-key")}, responses = {
+  @Operation(summary = "Get Profile", security = {
+      @SecurityRequirement(name = "bearer-key")}, responses = {
       @ApiResponse(description = "Success", responseCode = "200",
           content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProfileResponseDto.class)))
   })
@@ -131,7 +126,7 @@ public class MemberController {
 
   private void handleAuthorizationError(User user) {
     if (user == null || user.getUsername() == null || user.getUsername().isEmpty()) {
-      throw new MemberException("MEMBER:EMPTY_ACCESS_TOKEN");
+      throw new MemberException("MEMBER:ACCESS_TOKEN_INVALID");
     }
   }
 
